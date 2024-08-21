@@ -6,8 +6,8 @@ namespace Flow
 {
     public class Flow : Game
     {
-        public const int GraphDim = 8;
-        public const int CellDim = 64;
+        public const int GraphDim = 7;
+        public const int CellDim = 96;
         public static readonly Color[] Colors = new Color[]
         {
             new Color(0xFE, 0x00, 0x00),
@@ -31,7 +31,9 @@ namespace Flow
         public static GraphicsDeviceManager Graphics;
         public static ShapeDrawer Sd;
 
-        private Puzzle _puzzle;
+        private Graph _graph;
+        private bool _isSolving;
+        private bool _spaceWasPressed;
 
         public Flow()
         {
@@ -39,8 +41,8 @@ namespace Flow
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
 
-            Graphics.PreferredBackBufferWidth = CellDim * (System.Math.Max(GraphDim, 8) + 2);
-            Graphics.PreferredBackBufferHeight = CellDim * (GraphDim + 4);
+            Graphics.PreferredBackBufferWidth = CellDim * (GraphDim + 2);
+            Graphics.PreferredBackBufferHeight = CellDim * (GraphDim + 2);
             Graphics.ApplyChanges();
         }
 
@@ -48,7 +50,8 @@ namespace Flow
         {
             Texture2D lineTexture = new Texture2D(GraphicsDevice, 1, 1);
             lineTexture.SetData(new[] { Color.White });
-            _puzzle = new Puzzle();
+            _graph = new Graph();
+            _isSolving = false;
 
             base.Initialize();
         }
@@ -65,7 +68,19 @@ namespace Flow
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            _puzzle.Update();
+            if (!_isSolving)
+            {
+                _graph.Update();
+                if (Keyboard.GetState().IsKeyDown(Keys.Space))
+                {
+                    _isSolving = true;
+                    _spaceWasPressed = true;
+                }
+            }
+            else
+            {
+
+            }
 
             base.Update(gameTime);
         }
@@ -73,8 +88,8 @@ namespace Flow
         protected override void Draw(GameTime gameTime)
         {
             Sd.Begin();
-            GraphicsDevice.Clear(Color.Gray);
-            _puzzle.Draw();
+            GraphicsDevice.Clear(new Color(0x40, 0x40, 0x40));
+            _graph.Draw();
 
             base.Draw(gameTime);
             Sd.End();
