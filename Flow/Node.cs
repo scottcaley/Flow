@@ -14,8 +14,7 @@ namespace Flow
         {
             Standard,
             Endpoint,
-            Bridge,
-            Gone
+            Bridge
         }
         public NodeType Type;
 
@@ -29,18 +28,17 @@ namespace Flow
             Type = NodeType.Standard;
         }
 
-        public void Update()
-        {
-            
-        }
-
         public void Draw()
         {
-            if (Type != NodeType.Gone) FillSquare();
+            FillSquare();
 
             if (Type == NodeType.Endpoint)
             {
                 Flow.Sd.DrawInnerRectangle(X, Y, Flow.Colors[ColorIndex]);
+            }
+            else if (Type == NodeType.Bridge)
+            {
+                Flow.Sd.DrawCross(X, Y, Color.White);
             }
         }
 

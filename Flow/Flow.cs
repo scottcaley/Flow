@@ -6,8 +6,16 @@ namespace Flow
 {
     public class Flow : Game
     {
+        public enum Direction
+        {
+            Up,
+            Down,
+            Left,
+            Right
+        }
+
         public const int GraphDim = 7;
-        public const int CellDim = 96;
+        public const int CellDim = 100;
         public static readonly Color[] Colors = new Color[]
         {
             new Color(0xFE, 0x00, 0x00),
@@ -19,19 +27,22 @@ namespace Flow
             new Color(0xFF, 0x08, 0xC9),
             new Color(0x9F, 0x89, 0x50),
             new Color(0x7E, 0x00, 0x7E),
-            new Color(0xFF, 0xFF, 0xFF),
-            new Color(0x9C, 0x9D, 0xBC),
+            new Color(0xFE, 0xFF, 0xD9),
+            new Color(0x5E, 0x50, 0x32),
             new Color(0x00, 0xFF, 0x01),
             new Color(0xA4, 0x2A, 0x29),
             new Color(0x39, 0x29, 0xB0),
             new Color(0x00, 0x7F, 0x80),
             new Color(0xFF, 0x7C, 0xEC)
         };
+        public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
+        public static readonly Color YesColor = Color.White;
 
         public static GraphicsDeviceManager Graphics;
         public static ShapeDrawer Sd;
 
         private Graph _graph;
+        private Solution _solution;
         private bool _isSolving;
         private bool _spaceWasPressed;
 
@@ -73,13 +84,21 @@ namespace Flow
                 _graph.Update();
                 if (Keyboard.GetState().IsKeyDown(Keys.Space))
                 {
+                    _solution = new Solution(_graph);
                     _isSolving = true;
                     _spaceWasPressed = true;
                 }
             }
             else
             {
+                bool spaceIsPressed = Keyboard.GetState().IsKeyDown(Keys.Space);
 
+                if (spaceIsPressed && !_spaceWasPressed)
+                {
+                    _solution.Move();
+                }
+
+                _spaceWasPressed = spaceIsPressed;
             }
 
             base.Update(gameTime);
@@ -90,6 +109,7 @@ namespace Flow
             Sd.Begin();
             GraphicsDevice.Clear(new Color(0x40, 0x40, 0x40));
             _graph.Draw();
+            if (_isSolving) _solution.Draw();
 
             base.Draw(gameTime);
             Sd.End();

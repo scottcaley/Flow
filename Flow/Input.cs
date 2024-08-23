@@ -75,7 +75,7 @@ namespace Flow
             int diagonalX = (int)MathF.Floor(x - y);
             int diagonalY = (int)MathF.Floor(x + y);
 
-            if (diagonalX + diagonalY % 2 == 0) //horizontal edge
+            if ((diagonalX + diagonalY) % 2 == 0) //horizontal edge
             {
                 diagonalY -= 2; //non-homogenous transformation
                 int leftX = (diagonalX + diagonalY) / 2;
@@ -102,7 +102,7 @@ namespace Flow
             int y1 = coordinates.Item1.Item2;
             int x2 = coordinates.Item2.Item1;
             int y2 = coordinates.Item2.Item2;
-            
+            Debug.WriteLine($"({x1}, {y1})   ({x2}, {y2})");
             return (0 <= x1 && x1 < Flow.GraphDim && 0 <= y1 && y1 < Flow.GraphDim
                 && 0 <= x2 && x2 < Flow.GraphDim && 0 <= y2 && y2 < Flow.GraphDim);
         }

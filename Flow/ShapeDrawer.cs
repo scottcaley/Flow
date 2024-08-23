@@ -52,9 +52,9 @@ namespace Flow
             float length = Vector2.Distance(start, end);
             float angle = (float)Math.Atan2(end.Y - start.Y, end.X - start.X);
 
-            start -= 4f * perpendicular;
+            start -= Flow.CellDim / 16 * perpendicular;
 
-            Draw(_lineTexture, new Rectangle((int)start.X, (int)start.Y, (int)length, 8),
+            Draw(_lineTexture, new Rectangle((int)start.X, (int)start.Y, (int)length, Flow.CellDim / 8),
                 null, color, angle, Vector2.Zero, SpriteEffects.None, 0);
         }
 
@@ -68,6 +68,19 @@ namespace Flow
         public void DrawInnerRectangle(int x, int y, Color color)
         {
             Draw(_lineTexture, new Rectangle(ToPixel(x) + Flow.CellDim / 4, ToPixel(y) + Flow.CellDim / 4, Flow.CellDim / 2, Flow.CellDim / 2), color);
+        }
+
+        public void DrawCross(int x, int y, Color color)
+        {
+            float length = Flow.CellDim;
+            Draw(_lineTexture, new Rectangle(ToPixel(x) + Flow.CellDim / 4, ToPixel(y), 1, (int)length),
+                null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
+            Draw(_lineTexture, new Rectangle(ToPixel(x) + Flow.CellDim * 3 / 4, ToPixel(y), 1, (int)length),
+                null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
+            Draw(_lineTexture, new Rectangle(ToPixel(x), ToPixel(y) + Flow.CellDim / 4, (int)length, 1),
+                null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
+            Draw(_lineTexture, new Rectangle(ToPixel(x), ToPixel(y) + Flow.CellDim * 3 / 4, (int)length, 1),
+                null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
     }
 }
