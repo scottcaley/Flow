@@ -24,8 +24,6 @@ namespace Flow
         public readonly int Y2;
 
         public int ColorIndex;
-
-
         public Edge(int x1, int y1, int x2, int y2)
         {
             X1 = x1;
@@ -40,15 +38,15 @@ namespace Flow
         {
             if (Type == EdgeType.Standard)
             {
-                Flow.Sd.DrawThinLine(X1, Y1, X2, Y2, Color.White);
+                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, false);
             }            
             else if (Type == EdgeType.Wall)
             {
-                Flow.Sd.DrawThickLine(X1, Y1, X2, Y2, Color.White);
+                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, true);
             }
             else if (Type == EdgeType.Portal)
             {
-                Flow.Sd.DrawThickLine(X1, Y1, X2, Y2, Flow.Colors[ColorIndex]);
+                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Flow.Colors[ColorIndex], true);
             }
         }
         

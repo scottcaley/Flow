@@ -10,9 +10,22 @@ namespace Flow
 {
     internal class Graph
     {
-        public Node[,] Nodes;
-        public Edge[,] HorizontalEdges;
-        public Edge[,] VerticalEdges;
+        private Node[,] _nodes;
+        public Node getNode(int x, int y) { return _nodes[x, y]; }
+        private Edge[,] _horizontalEdges;
+        private Edge[,] _verticalEdges;
+        public Edge getEdge(int x1, int y1, int x2, int y2)
+        {
+            if (x1 + 1 == x2)
+            {
+                return _verticalEdges[x2, y2];
+            }
+            else if (y1 + 1 == y2)
+            {
+                return _horizontalEdges[x2, y2];
+            }
+            else return null;
+        }
 
         public Node[] EndpointNodes;
         public int NumEndpointNodes;
@@ -21,25 +34,25 @@ namespace Flow
         public int NumPortalEdges;
         public Graph()
         {
-            Nodes = new Node[Flow.GraphDim, Flow.GraphDim];
-            HorizontalEdges = new Edge[Flow.GraphDim, Flow.GraphDim + 1];
-            VerticalEdges = new Edge[Flow.GraphDim + 1, Flow.GraphDim];
-            for (int i = 0; i <  Flow.GraphDim; i++)
+            _nodes = new Node[Flow.GraphDim, Flow.GraphDim];
+            _horizontalEdges = new Edge[Flow.GraphDim, Flow.GraphDim + 1];
+            _verticalEdges = new Edge[Flow.GraphDim + 1, Flow.GraphDim];
+
+            for (int i = 0; i < Flow.GraphDim; i++)
             {
                 for (int j = 0; j < Flow.GraphDim; j++)
                 {
-                    Nodes[i, j] = new Node(i, j);
-                    HorizontalEdges[i, j] = new Edge(i, j, i + 1, j);
-                    VerticalEdges[i, j] = new Edge(i, j, i, j + 1);
+                    _nodes[i, j] = new Node(i, j);
                 }
             }
-            for (int i = 0; i < Flow.GraphDim; i++) //bottom edges
+
+            for (int i = 0; i < Flow.GraphDim; i++)
             {
-                HorizontalEdges[i, Flow.GraphDim] = new Edge(i, Flow.GraphDim, i + 1, Flow.GraphDim);
-            }
-            for (int j = 0; j < Flow.GraphDim; j++) //right edges
-            {
-                VerticalEdges[Flow.GraphDim, j] = new Edge(Flow.GraphDim, j, Flow.GraphDim, j + 1);
+                for (int j = 0; j < Flow.GraphDim + 1; j++)
+                {
+                    _horizontalEdges[i, j] = new Edge(i, j - 1, i, j);
+                    _verticalEdges[j, i] = new Edge(j - 1, i, j, i);
+                }
             }
 
             EndpointNodes = new Node[Flow.Colors.Length * 2];
@@ -56,7 +69,7 @@ namespace Flow
                 if (!Input.IsClickingOnNode()) return;
 
                 (int, int) nodeCoordinates = Input.NodeCoordinates();
-                Node node = Nodes[nodeCoordinates.Item1, nodeCoordinates.Item2];
+                Node node = _nodes[nodeCoordinates.Item1, nodeCoordinates.Item2];
 
                 if (node == null || node.Type != Node.NodeType.Standard) return;
 
@@ -75,7 +88,7 @@ namespace Flow
                 {
                     int x = node.X;
                     int y = node.Y;
-                    Nodes[nodeCoordinates.Item1, nodeCoordinates.Item2] = null;
+                    _nodes[nodeCoordinates.Item1, nodeCoordinates.Item2] = null;
                     EdgeRemovals(x, y);
                 }
             }
@@ -83,15 +96,15 @@ namespace Flow
             {
                 if (!Input.IsClickingOnEdge()) return;
 
-                ((int, int), (int, int)) edgePair = Input.EdgeCoordinates();
+                (int, int, int, int) edgePair = Input.EdgeCoordinates();
                 Edge edge;
-                if (edgePair.Item1.Item1 + 1 == edgePair.Item2.Item1) //horizontal
+                if (edgePair.Item1 + 1 == edgePair.Item3) //vertical edge
                 {
-                    edge = HorizontalEdges[edgePair.Item1.Item1, edgePair.Item1.Item2];
+                    edge = _verticalEdges[edgePair.Item3, edgePair.Item4];
                 }
-                else
+                else //horizontal edge
                 {
-                    edge = VerticalEdges[edgePair.Item1.Item1, edgePair.Item1.Item2];
+                    edge = _horizontalEdges[edgePair.Item3, edgePair.Item4];
                 }
 
                 if (edge == null || edge.Type != Edge.EdgeType.Standard) return;
@@ -112,36 +125,27 @@ namespace Flow
 
         private void EdgeRemovals(int x, int y)
         {
-            if (1 <= x)
-            {
-                if (Nodes[x - 1, y] == null) VerticalEdges[x, y] = null;
-            }
-            if (x < Flow.GraphDim - 1)
-            {
-                if (Nodes[x + 1, y] == null) VerticalEdges[x + 1, y] = null;
-            }
-
-            if (1 <= y)
-            {
-                if (Nodes[x, y - 1] == null) HorizontalEdges[x, y] = null;
-            }
-            if (y < Flow.GraphDim - 1)
-            {
-                if (Nodes[x, y + 1] == null) HorizontalEdges[x, y + 1] = null;
-            }
+            //left
+            if (x == 0 || _nodes[x - 1, y] == null) _verticalEdges[x, y] = null;
+            //right
+            if (x == Flow.GraphDim - 1 || _nodes[x + 1, y] == null) _verticalEdges[x + 1, y] = null;
+            //top
+            if (y == 0 || _nodes[x, y - 1] == null) _horizontalEdges[x, y] = null;
+            //bottom
+            if (y == Flow.GraphDim - 1 || _nodes[x, y + 1] == null) _horizontalEdges[x, y + 1] = null;
         }
 
         public void Draw()
         {
-            foreach (Node node in Nodes)
+            foreach (Node node in _nodes)
             {
                 if (node != null) node.Draw();
             }
-            foreach(Edge edge in HorizontalEdges)
+            foreach(Edge edge in _horizontalEdges)
             {
                 if (edge != null) edge.Draw();
             }
-            foreach(Edge edge in VerticalEdges)
+            foreach(Edge edge in _verticalEdges)
             {
                 if (edge != null) edge.Draw();
             }

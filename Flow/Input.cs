@@ -14,6 +14,7 @@ namespace Flow
         public enum KeyboardInputType
         {
             None,
+            Solve,
             Endpoint,
             Bridge,
             Gone,
@@ -24,7 +25,11 @@ namespace Flow
         public static KeyboardInputType GetKeyboardInputType()
         {
             KeyboardState keyboardState = Keyboard.GetState();
-            if (keyboardState.IsKeyDown(Keys.E))
+            if (keyboardState.IsKeyDown(Keys.Space))
+            {
+                return KeyboardInputType.Solve;
+            }
+            else if (keyboardState.IsKeyDown(Keys.E))
             {
                 return KeyboardInputType.Endpoint;
             }
@@ -66,7 +71,7 @@ namespace Flow
             return (0 <= x && x < Flow.GraphDim && 0 <= y && y < Flow.GraphDim);
         }
 
-        public static ((int, int), (int, int)) EdgeCoordinates()
+        public static (int, int, int, int) EdgeCoordinates()
         {
             MouseState mouseState = Mouse.GetState();
             float x = (float)mouseState.X / (float)Flow.CellDim;
@@ -75,20 +80,20 @@ namespace Flow
             int diagonalX = (int)MathF.Floor(x - y);
             int diagonalY = (int)MathF.Floor(x + y);
 
-            if ((diagonalX + diagonalY) % 2 == 0) //horizontal edge
+            if ((diagonalX + diagonalY) % 2 == 0) //vertical nodes
             {
-                diagonalY -= 2; //non-homogenous transformation
-                int leftX = (diagonalX + diagonalY) / 2;
-                int leftY = (-diagonalX + diagonalY) / 2;
-                return ((leftX, leftY), (leftX + 1, leftY));
-            }
-            else //vertical edge
-            {
-                diagonalX += 1; //non-homogeneous transformation
-                diagonalY -= 2;
+                diagonalX += 1; //non-homogenous transformation
+                diagonalY -= 3;
                 int topX = (diagonalX + diagonalY) / 2;
                 int topY = (-diagonalX + diagonalY) / 2;
-                return ((topX, topY), (topX, topY + 1));
+                return (topX, topY, topX, topY + 1);
+            }
+            else //horizontal nodes
+            {
+                diagonalY -= 3; //non-homogeneous transformation
+                int leftX = (diagonalX + diagonalY) / 2;
+                int leftY = (-diagonalX + diagonalY) / 2;
+                return (leftX, leftY, leftX + 1, leftY);
             }
         }
 
@@ -97,14 +102,15 @@ namespace Flow
             MouseState mouseState = Mouse.GetState();
             if (mouseState.LeftButton != ButtonState.Pressed) return false;
 
-            ((int, int), (int, int)) coordinates = EdgeCoordinates();
-            int x1 = coordinates.Item1.Item1;
-            int y1 = coordinates.Item1.Item2;
-            int x2 = coordinates.Item2.Item1;
-            int y2 = coordinates.Item2.Item2;
-            Debug.WriteLine($"({x1}, {y1})   ({x2}, {y2})");
-            return (0 <= x1 && x1 < Flow.GraphDim && 0 <= y1 && y1 < Flow.GraphDim
-                && 0 <= x2 && x2 < Flow.GraphDim && 0 <= y2 && y2 < Flow.GraphDim);
+            (int, int, int, int) coordinates = EdgeCoordinates();
+            int x1 = coordinates.Item1;
+            int y1 = coordinates.Item2;
+            int x2 = coordinates.Item3;
+            int y2 = coordinates.Item4;
+
+            return
+                (-1 <= x1 && x1 < Flow.GraphDim && -1 <= y1 && y1 < Flow.GraphDim) &&
+                ((x1 + 1 == x2 && y1 >= 0) || (y1 + 1 == y2 && x1 >= 0));
         }
     }
 }

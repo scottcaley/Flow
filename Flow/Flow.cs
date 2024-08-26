@@ -14,7 +14,7 @@ namespace Flow
             Right
         }
 
-        public const int GraphDim = 7;
+        public const int GraphDim = 6;
         public const int CellDim = 100;
         public static readonly Color[] Colors = new Color[]
         {
@@ -82,7 +82,7 @@ namespace Flow
             if (!_isSolving)
             {
                 _graph.Update();
-                if (Keyboard.GetState().IsKeyDown(Keys.Space))
+                if (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve)
                 {
                     _solution = new Solution(_graph);
                     _isSolving = true;
@@ -91,7 +91,7 @@ namespace Flow
             }
             else
             {
-                bool spaceIsPressed = Keyboard.GetState().IsKeyDown(Keys.Space);
+                bool spaceIsPressed = (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve);
 
                 if (spaceIsPressed && !_spaceWasPressed)
                 {
