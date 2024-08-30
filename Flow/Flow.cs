@@ -1,21 +1,16 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 
 namespace Flow
 {
     public class Flow : Game
-    {
-        public enum Direction
-        {
-            Up,
-            Down,
-            Left,
-            Right
-        }
-
-        public const int GraphDim = 7;
-        public const int CellDim = 100;
+    { 
+        public const int GraphDim = 9;
+        public const int CellDim = 128;
+        public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
+        public static readonly Color GoodColor = Color.White;
         public static readonly Color[] Colors = new Color[]
         {
             new Color(0xFE, 0x00, 0x00),
@@ -35,14 +30,12 @@ namespace Flow
             new Color(0x00, 0x7F, 0x80),
             new Color(0xFF, 0x7C, 0xEC)
         };
-        public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
-        public static readonly Color YesColor = Color.White;
 
         public static GraphicsDeviceManager Graphics;
         public static ShapeDrawer Sd;
 
         private Graph _graph;
-        private Solution _solution;
+        private Puzzle _solution;
         private bool _isSolving;
         private bool _spaceWasPressed;
 
@@ -51,6 +44,7 @@ namespace Flow
             Graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+            TargetElapsedTime = TimeSpan.FromMilliseconds(1000.0 / 15.0);
 
             Graphics.PreferredBackBufferWidth = CellDim * (GraphDim + 2);
             Graphics.PreferredBackBufferHeight = CellDim * (GraphDim + 2);
@@ -78,24 +72,26 @@ namespace Flow
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
+            Input.Update();
 
             if (!_isSolving)
             {
                 _graph.Update();
-                if (Keyboard.GetState().IsKeyDown(Keys.Space))
+                if (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve)
                 {
+                    _graph.Finish();
                     _solution = new Solution(_graph);
                     _isSolving = true;
                     _spaceWasPressed = true;
                 }
             }
-            else
+            else if (!_solution.IsSolved)
             {
-                bool spaceIsPressed = Keyboard.GetState().IsKeyDown(Keys.Space);
+                bool spaceIsPressed = (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve);
 
                 if (spaceIsPressed && !_spaceWasPressed)
                 {
-                    _solution.Move();
+                    _solution.PerformMove();
                 }
 
                 _spaceWasPressed = spaceIsPressed;

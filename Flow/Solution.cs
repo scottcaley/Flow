@@ -1,80 +1,64 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Flow
 {
-    internal class Solution
+    internal class Solution : Puzzle
     {
-        private class SolutionEdge
+        private class Move
         {
-            public enum SolutionEdgeState
+            Path path;
+            Path.PathState pathState;
+            bool isGuess;
+
+            public Move(Path path, Path.PathState pathState, bool isGuess)
             {
-                Bad,
-                Maybe,
-                Good
+                this.path = path;
+                this.pathState = pathState;
+                this.isGuess = isGuess;
             }
 
-            SolutionEdgeState _solutionEdgeType;
-            Flow.Direction _direction;
-            Color _color;
-
-
-        }
-        private class SolutionNode
-        {
-            private readonly Node _node;
-            private bool _isSolved;
-            private SolutionEdge[] _solutionEdges;
-            SolutionNode(Node node)
+            public void Perform()
             {
-                _node = node;
-                _isSolved = false;
-                _solutionEdges = new SolutionEdge[4];
+                path.pathState = pathState;
+                path.isGuess = isGuess;
             }
 
-            public void Draw()
+            public void Undo()
             {
-
+                path.pathState = Path.PathState.Maybe;
+                path.isGuess = false;
             }
         }
 
-        private SolutionNode[,] _solutionNodes;
-
-        bool _isGuessing;
-        public Solution(Graph graph)
+        Queue<Move> _moves;
+        Stack<Move> _guesses;
+        bool isGuessing;
+        public Solution(Graph graph) : base(graph)
         {
-            _solutionNodes = new SolutionNode[Flow.GraphDim, Flow.GraphDim];
-            for (int i = 0; i < Flow.GraphDim; i++)
+            _moves = new Queue<Move>();
+            _guesses = new Stack<Move>();
+            isGuessing = false;
+        }
+
+        public override void PerformMove()
+        {
+            if (_moves.Count > 0)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
-                {
-                    
-                }
+                _moves.Dequeue().Perform();
+                return;
             }
-            _isGuessing = false;
-        }
 
-
-        public void Draw()
-        {
-            for (int i = 0; i < Flow.GraphDim; i++)
+            if (true)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
-                {
-                    if (_solutionNodes[i, j] != null) _solutionNodes[i, j].Draw();
-                }
+
             }
+
+            _moves.Dequeue().Perform();
         }
-
-        public void Move()
-        {
-            
-        }
-
-
     }
 }
