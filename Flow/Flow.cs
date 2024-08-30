@@ -85,7 +85,7 @@ namespace Flow
                     _spaceWasPressed = true;
                 }
             }
-            else
+            else if (!_solution.IsSolved)
             {
                 bool spaceIsPressed = (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve);
 

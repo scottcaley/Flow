@@ -42,9 +42,9 @@ namespace Flow
             {
                 if (pathState == PathState.Maybe) return Flow.MaybeColor;
 
-                if (node1.color == node2.color)
+                if (node1.colorIndex == node2.colorIndex)
                 {
-                    return node1.color;
+                    return Flow.Colors[node1.colorIndex];
                 }
                 else
                 {
@@ -116,7 +116,7 @@ namespace Flow
                 this.dest1Y = dest1Y;
                 this.dest2X = dest2X;
                 this.dest2Y = dest2Y;
-                int x = 0;
+
                 AssignNodes();
             }
 
@@ -139,7 +139,7 @@ namespace Flow
             public readonly int numPaths;
 
             public Path[] paths;
-            public Color color;
+            public int colorIndex;
             
             public Node(int x, int y, int numPaths)
             {
@@ -147,6 +147,23 @@ namespace Flow
                 this.y = y;
                 this.numPaths = numPaths;
                 paths = new Path[4];
+                colorIndex = -1;
+            }
+
+            public HashSet<Node> Neighbors()
+            {
+                HashSet<Node> neighbors = new HashSet<Node>();
+
+                for (int i = 0; i < 4; i++)
+                {
+                    Path path = paths[i];
+                    if (path == null) continue;
+
+                    if (path.node1 == this) neighbors.Add(path.node2);
+                    else neighbors.Add(path.node1);
+                }
+
+                return neighbors;
             }
 
             public void OrganizedEdgeDraw()
@@ -170,22 +187,14 @@ namespace Flow
                 for (int j = 0; j < Flow.GraphDim; j++)
                 {
                     Vertex vertex = graph.getVertex(i, j);
-                    if (vertex != null)
+                    if (vertex == null || vertex.Type == Vertex.VertexType.Bridge) continue;
+
+                    int numPaths = (vertex.Type == Vertex.VertexType.Standard) ? 2 : 1;
+                    _allNodes[i, j] = new Node(i, j, numPaths);
+
+                    if (vertex.Type == Vertex.VertexType.Endpoint)
                     {
-                        int numPaths = 0;
-                        if (vertex.Type == Vertex.VertexType.Standard)
-                        {
-                            numPaths = 2;
-                        }
-                        else if (vertex.Type == Vertex.VertexType.Endpoint)
-                        {
-                            numPaths = 1;
-                        }
-                        _allNodes[i, j] = new Node(i, j, numPaths);
-                        if (vertex.Type == Vertex.VertexType.Endpoint)
-                        {
-                            _allNodes[i, j].color = Flow.Colors[vertex.ColorIndex];
-                        }
+                        _allNodes[i, j].colorIndex = vertex.ColorIndex;
                     }
                 }
             }
@@ -327,6 +336,83 @@ namespace Flow
                 {
                     if (_allNodes[i, j] != null) _allNodes[i, j].OrganizedEdgeDraw();
                 }
+            }
+        }
+
+        private bool checkPathCounts()
+        {
+            for (int i = 0; i < Flow.GraphDim; i++)
+            {
+                for (int j = 0; j < Flow.GraphDim; j++)
+                {
+                    Node node = _allNodes[i, j];
+                    if (node == null) continue;
+
+                    int goodPathCount = 0;
+                    for (int pathIndex = 0; pathIndex < 4; pathIndex++)
+                    {
+                        Path path = node.paths[pathIndex];
+                        if (path == null) continue;
+                        if (path.pathState == Path.PathState.Maybe) return false;
+                        if (path.pathState == Path.PathState.Good) goodPathCount++;
+                    }
+                    if (goodPathCount != node.numPaths) return false;
+                }
+            }
+            return true;
+        }
+
+        private bool checkColors()
+        {
+            HashSet<Node>[] nodesByColor = new HashSet<Node>[16];
+            for (int i = 0; i < 16; i++)
+            {
+                nodesByColor[i] = new HashSet<Node>();
+            }
+
+            for (int i = 0; i < Flow.GraphDim; i++)
+            {
+                for (int j = 0; j < Flow.GraphDim; j++)
+                {
+                    Node node = _allNodes[i, j];
+                    if (node == null) continue;
+                    if (node.colorIndex == -1) return false; //uncolored node is bad
+                    nodesByColor[i].Add(node);
+                }
+            }
+
+            for (int i = 0; i < 16; i++)
+            {
+                HashSet<Node> oldNodes = nodesByColor[i];
+                if (oldNodes.Count == 0) continue;
+
+                Node firstNode = oldNodes.First();
+                oldNodes.Remove(firstNode);
+                HashSet<Node> newNodes = new HashSet<Node>();
+                newNodes.Add(firstNode);
+
+                while (newNodes.Count > 0)
+                {
+                    Node nextNode = newNodes.First();
+                    newNodes.Remove(nextNode);
+
+                    HashSet<Node> neighbors = nextNode.Neighbors();
+                    neighbors.Intersect(oldNodes);
+                    oldNodes.ExceptWith(neighbors);
+                    newNodes.Union(neighbors);
+                }
+
+                if (oldNodes.Count > 0) return false; //if not all connected, then false
+            }
+
+            return true;
+        }
+
+        public bool IsSolved
+        {
+            get
+            {
+                return checkPathCounts() && checkColors();
             }
         }
 

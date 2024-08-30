@@ -34,11 +34,31 @@ namespace Flow
                 path.isGuess = false;
             }
         }
-        public Solution(Graph graph) : base(graph) { }
+
+        Queue<Move> _moves;
+        Stack<Move> _guesses;
+        bool isGuessing;
+        public Solution(Graph graph) : base(graph)
+        {
+            _moves = new Queue<Move>();
+            _guesses = new Stack<Move>();
+            isGuessing = false;
+        }
 
         public override void PerformMove()
         {
-            
+            if (_moves.Count > 0)
+            {
+                _moves.Dequeue().Perform();
+                return;
+            }
+
+            if (true)
+            {
+
+            }
+
+            _moves.Dequeue().Perform();
         }
     }
 }
