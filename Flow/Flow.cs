@@ -7,7 +7,7 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDim = 5;
+        public const int GraphDim = 9;
         public const int CellDim = 128;
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
         public static readonly Color GoodColor = Color.White;
@@ -35,7 +35,7 @@ namespace Flow
         public static ShapeDrawer Sd;
 
         private Graph _graph;
-        private Solution _solution;
+        private Puzzle _solution;
         private bool _isSolving;
         private bool _spaceWasPressed;
 
