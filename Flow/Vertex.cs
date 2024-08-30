@@ -8,35 +8,35 @@ using System.Threading.Tasks;
 
 namespace Flow
 {
-    internal class Node
+    internal class Vertex
     {
-        public enum NodeType
+        public enum VertexType
         {
             Standard,
             Endpoint,
             Bridge
         }
-        public NodeType Type;
+        public VertexType Type;
 
         public readonly int X;
         public readonly int Y;
         public int ColorIndex;
-        public Node(int x, int y)
+        public Vertex(int x, int y)
         {
             X = x;
             Y = y; 
-            Type = NodeType.Standard;
+            Type = VertexType.Standard;
         }
 
         public void Draw()
         {
             FillSquare();
 
-            if (Type == NodeType.Endpoint)
+            if (Type == VertexType.Endpoint)
             {
                 Flow.Sd.DrawInnerRectangle(X, Y, Flow.Colors[ColorIndex]);
             }
-            else if (Type == NodeType.Bridge)
+            else if (Type == VertexType.Bridge)
             {
                 Flow.Sd.DrawCross(X, Y, Color.White);
             }

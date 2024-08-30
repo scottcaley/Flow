@@ -10,31 +10,36 @@ namespace Flow
 {
     internal class Graph
     {
-        private Node[,] _nodes;
-        public Node getNode(int x, int y) { return _nodes[x, y]; }
+        private Vertex[,] _vertices;
+        public Vertex getVertex(int x, int y) {
+            if (!(0 <= x && x < Flow.GraphDim && 0 <= y && y < Flow.GraphDim)) return null;
+            return _vertices[x, y];
+        }
         private Edge[,] _horizontalEdges;
         private Edge[,] _verticalEdges;
         public Edge getEdge(int x1, int y1, int x2, int y2)
         {
             if (x1 + 1 == x2)
             {
+                if (!(0 <= x1 && x2 < Flow.GraphDim + 1 && 0 <= y1 && y1 < Flow.GraphDim)) return null;
                 return _verticalEdges[x2, y2];
             }
             else if (y1 + 1 == y2)
             {
+                if (!(0 <= y1 && y2 < Flow.GraphDim + 1 && 0 <= x1 && x1 < Flow.GraphDim)) return null;
                 return _horizontalEdges[x2, y2];
             }
             else return null;
         }
 
-        public Node[] EndpointNodes;
-        public int NumEndpointNodes;
+        public Vertex[] EndpointVertices;
+        public int NumEndpointVertices;
 
         public Edge[] PortalEdges;
         public int NumPortalEdges;
         public Graph()
         {
-            _nodes = new Node[Flow.GraphDim, Flow.GraphDim];
+            _vertices = new Vertex[Flow.GraphDim, Flow.GraphDim];
             _horizontalEdges = new Edge[Flow.GraphDim, Flow.GraphDim + 1];
             _verticalEdges = new Edge[Flow.GraphDim + 1, Flow.GraphDim];
 
@@ -42,7 +47,7 @@ namespace Flow
             {
                 for (int j = 0; j < Flow.GraphDim; j++)
                 {
-                    _nodes[i, j] = new Node(i, j);
+                    _vertices[i, j] = new Vertex(i, j);
                 }
             }
 
@@ -55,8 +60,8 @@ namespace Flow
                 }
             }
 
-            EndpointNodes = new Node[Flow.Colors.Length * 2];
-            NumEndpointNodes = 0;
+            EndpointVertices = new Vertex[Flow.Colors.Length * 2];
+            NumEndpointVertices = 0;
             PortalEdges = new Edge[Flow.Colors.Length * 2];
             NumPortalEdges = 0;
         }
@@ -64,31 +69,31 @@ namespace Flow
         public void Update()
         {
             Input.KeyboardInputType keyInput = Input.GetKeyboardInputType();
-            if (keyInput == Input.KeyboardInputType.Endpoint || keyInput == Input.KeyboardInputType.Bridge || keyInput == Input.KeyboardInputType.Gone) //nodes
+            if (keyInput == Input.KeyboardInputType.Endpoint || keyInput == Input.KeyboardInputType.Bridge || keyInput == Input.KeyboardInputType.Gone) //vertices
             {
                 if (!Input.IsClickingOnNode()) return;
 
                 (int, int) nodeCoordinates = Input.NodeCoordinates();
-                Node node = _nodes[nodeCoordinates.Item1, nodeCoordinates.Item2];
+                Vertex node = _vertices[nodeCoordinates.Item1, nodeCoordinates.Item2];
 
-                if (node == null || node.Type != Node.NodeType.Standard) return;
+                if (node == null || node.Type != Vertex.VertexType.Standard) return;
 
                 if (keyInput == Input.KeyboardInputType.Endpoint)
                 {
-                    node.Type = Node.NodeType.Endpoint;
-                    node.ColorIndex = NumEndpointNodes / 2;
-                    EndpointNodes[NumEndpointNodes] = node;
-                    NumEndpointNodes++;
+                    node.Type = Vertex.VertexType.Endpoint;
+                    node.ColorIndex = NumEndpointVertices / 2;
+                    EndpointVertices[NumEndpointVertices] = node;
+                    NumEndpointVertices++;
                 }
                 else if (keyInput == Input.KeyboardInputType.Bridge)
                 {
-                    node.Type = Node.NodeType.Bridge;
+                    node.Type = Vertex.VertexType.Bridge;
                 }
                 else // Gone
                 {
                     int x = node.X;
                     int y = node.Y;
-                    _nodes[nodeCoordinates.Item1, nodeCoordinates.Item2] = null;
+                    _vertices[nodeCoordinates.Item1, nodeCoordinates.Item2] = null;
                     EdgeRemovals(x, y);
                 }
             }
@@ -107,18 +112,25 @@ namespace Flow
                     edge = _horizontalEdges[edgePair.Item3, edgePair.Item4];
                 }
 
-                if (edge == null || edge.Type != Edge.EdgeType.Standard) return;
+                if (edge == null || edge.Type == Edge.EdgeType.Wall) return;
 
-                if (keyInput == Input.KeyboardInputType.Wall)
+                if (keyInput == Input.KeyboardInputType.Wall && edge.Type == Edge.EdgeType.Standard)
                 {
                     edge.Type = Edge.EdgeType.Wall;
                 }
                 else // Portal
                 {
-                    edge.Type = Edge.EdgeType.Portal;
-                    edge.ColorIndex = NumPortalEdges / 2;
-                    PortalEdges[NumPortalEdges] = edge;
-                    NumPortalEdges++;
+                    if (edge.Type == Edge.EdgeType.Standard)
+                    {
+                        edge.Type = Edge.EdgeType.Portal;
+                        edge.ColorIndex = NumPortalEdges / 2;
+                        PortalEdges[NumPortalEdges] = edge;
+                        NumPortalEdges++;
+                    }
+                    else if (Input.JustClicked)
+                    {
+                        edge.PointFirst = !edge.PointFirst;
+                    }
                 }
             }
         }
@@ -126,18 +138,39 @@ namespace Flow
         private void EdgeRemovals(int x, int y)
         {
             //left
-            if (x == 0 || _nodes[x - 1, y] == null) _verticalEdges[x, y] = null;
+            if (x == 0 || _vertices[x - 1, y] == null) _verticalEdges[x, y] = null;
             //right
-            if (x == Flow.GraphDim - 1 || _nodes[x + 1, y] == null) _verticalEdges[x + 1, y] = null;
+            if (x == Flow.GraphDim - 1 || _vertices[x + 1, y] == null) _verticalEdges[x + 1, y] = null;
             //top
-            if (y == 0 || _nodes[x, y - 1] == null) _horizontalEdges[x, y] = null;
+            if (y == 0 || _vertices[x, y - 1] == null) _horizontalEdges[x, y] = null;
             //bottom
-            if (y == Flow.GraphDim - 1 || _nodes[x, y + 1] == null) _horizontalEdges[x, y + 1] = null;
+            if (y == Flow.GraphDim - 1 || _vertices[x, y + 1] == null) _horizontalEdges[x, y + 1] = null;
+        }
+
+        public void Finish()
+        {
+            foreach(Edge edge in _horizontalEdges)
+            {
+                if (edge != null && edge.Type == Edge.EdgeType.Standard &&
+                    (getVertex(edge.X1, edge.Y1) == null || getVertex(edge.X2, edge.Y2) == null))
+                {
+                    edge.Type = Edge.EdgeType.Wall;
+                }
+            }
+
+            foreach (Edge edge in _verticalEdges)
+            {
+                if (edge != null && edge.Type == Edge.EdgeType.Standard &&
+                    (getVertex(edge.X1, edge.Y1) == null || getVertex(edge.X2, edge.Y2) == null))
+                {
+                    edge.Type = Edge.EdgeType.Wall;
+                }
+            }
         }
 
         public void Draw()
         {
-            foreach (Node node in _nodes)
+            foreach (Vertex node in _vertices)
             {
                 if (node != null) node.Draw();
             }

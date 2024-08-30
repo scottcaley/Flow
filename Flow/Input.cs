@@ -22,6 +22,21 @@ namespace Flow
             Portal
         }
 
+        private static bool wasClicking = false;
+        private static bool isClicking = false;
+        public static bool JustClicked
+        {
+            get
+            {
+                return isClicking && !wasClicking;
+            }
+        }
+        public static void Update()
+        {
+            wasClicking = isClicking;
+            isClicking = Mouse.GetState().LeftButton == ButtonState.Pressed;
+        }
+
         public static KeyboardInputType GetKeyboardInputType()
         {
             KeyboardState keyboardState = Keyboard.GetState();
