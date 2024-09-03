@@ -7,8 +7,10 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDim = 9;
-        public const int CellDim = 128;
+        public const int GraphDim = 6;
+        public const int CellDim = 192;
+        public const double FrameTime = 1.0 / 10.0;
+
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
         public static readonly Color GoodColor = Color.White;
         public static readonly Color[] Colors = new Color[]
@@ -37,14 +39,13 @@ namespace Flow
         private Graph _graph;
         private Puzzle _solution;
         private bool _isSolving;
-        private bool _spaceWasPressed;
 
         public Flow()
         {
             Graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
-            TargetElapsedTime = TimeSpan.FromMilliseconds(1000.0 / 15.0);
+            TargetElapsedTime = TimeSpan.FromSeconds(FrameTime);
 
             Graphics.PreferredBackBufferWidth = CellDim * (GraphDim + 2);
             Graphics.PreferredBackBufferHeight = CellDim * (GraphDim + 2);
@@ -77,24 +78,30 @@ namespace Flow
             if (!_isSolving)
             {
                 _graph.Update();
-                if (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve)
+                if (Input.JustPressedSpace)
                 {
                     _graph.Finish();
                     _solution = new Solution(_graph);
                     _isSolving = true;
-                    _spaceWasPressed = true;
                 }
             }
-            else if (!_solution.IsSolved)
+            else
             {
-                bool spaceIsPressed = (Input.GetKeyboardInputType() == Input.KeyboardInputType.Solve);
-
-                if (spaceIsPressed && !_spaceWasPressed)
+                if (Input.JustPressedSpace || Input.SpacePressDuration > 1.0)
                 {
-                    _solution.PerformMove();
+                    if (_solution.IsSolved && Input.JustPressedSpace)
+                    {
+                        _solution = new Solution(_graph);
+                    }
+                    else
+                    {
+                        _solution.Forward();
+                    }
                 }
-
-                _spaceWasPressed = spaceIsPressed;
+                else if (Input.JustPressedZ || Input.ZPressDuration > 1.0)
+                {
+                    _solution.Back();
+                }
             }
 
             base.Update(gameTime);

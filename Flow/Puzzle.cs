@@ -1,9 +1,13 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,7 +15,7 @@ namespace Flow
 {
     abstract class Puzzle
     {
-        protected class Path
+        public class Path
         {
             public enum PathState
             {
@@ -38,11 +42,18 @@ namespace Flow
                 if (isStandardPath) AssignNodes();
             }
 
+            public Node OtherNode(Node node)
+            {
+                if (node == node1) return node2;
+                else if (node == node2) return node1;
+                else return null;
+            }
+
             protected Color GetColor()
             {
                 if (pathState == PathState.Maybe) return Flow.MaybeColor;
 
-                if (node1.colorIndex == node2.colorIndex)
+                if (node1.colorIndex == node2.colorIndex && node1.colorIndex >= 0)
                 {
                     return Flow.Colors[node1.colorIndex];
                 }
@@ -78,23 +89,37 @@ namespace Flow
 
         }
 
-        protected class BridgePath : Path
+        public class BridgePath : Path
         {
-            public readonly int centerX;
-            public readonly int centerY;
+            public readonly int dest1X;
+            public readonly int dest1Y;
+            public readonly int dest2X;
+            public readonly int dest2Y;
             public BridgePath(Node node1, Node node2)
                 : base(node1, node2, false)
             {
-                this.centerX = (node1.x + node2.x) / 2;
-                this.centerY = (node1.y + node2.y) / 2;
+                dest1X = node1.x;
+                dest1Y = node1.y;
+                dest2X = node2.x;
+                dest2Y = node2.y;
+                if (node1.x != node2.x)
+                {
+                    dest1X += node1.x < node2.x ? 1 : -1;
+                    dest2X += node2.x < node1.x ? 1 : -1;
+                }
+                else //node1.y != node2.y
+                {
+                    dest1Y += node1.y < node2.y ? 1 : -1;
+                    dest2Y += node2.y < node1.y ? 1 : -1;
+                }
 
                 AssignNodes();
             }
 
             protected override void AssignNodes()
             {
-                assignNodeOffOne(node1, centerX, centerY);
-                assignNodeOffOne(node2, centerX, centerY);
+                assignNodeOffOne(node1, dest1X, dest1Y);
+                assignNodeOffOne(node2, dest2X, dest2Y);
             }
 
             public override void Draw()
@@ -103,7 +128,7 @@ namespace Flow
             }
         }
 
-        protected class PortalPath : Path
+        public class PortalPath : Path
         {
             public readonly int dest1X;
             public readonly int dest1Y;
@@ -132,7 +157,7 @@ namespace Flow
             }
         }
 
-        protected class Node
+        public class Node
         {
             public readonly int x;
             public readonly int y;
@@ -140,6 +165,7 @@ namespace Flow
 
             public Path[] paths;
             public int colorIndex;
+            public bool isEndpoint;
             
             public Node(int x, int y, int numPaths)
             {
@@ -148,9 +174,43 @@ namespace Flow
                 this.numPaths = numPaths;
                 paths = new Path[4];
                 colorIndex = -1;
+                isEndpoint = false;
             }
 
-            public HashSet<Node> Neighbors()
+            public bool IsSolved
+            {
+                get
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Path path = paths[i];
+                        if (path != null && path.pathState == Path.PathState.Maybe) return false;
+                    }
+
+                    return true;
+                }
+            }
+
+            public static Path Between(Node node1, Node node2)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    Path path1 = node1.paths[i];
+                    if (path1 == null) continue;
+
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Path path2 = node2.paths[j];
+                        if (path2 == null) continue;
+
+                        if (path1 == path2) return path1;
+                    }
+                }
+
+                return null;
+            }
+
+            public HashSet<Node> Neighbors(bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
             {
                 HashSet<Node> neighbors = new HashSet<Node>();
 
@@ -159,11 +219,172 @@ namespace Flow
                     Path path = paths[i];
                     if (path == null) continue;
 
-                    if (path.node1 == this) neighbors.Add(path.node2);
-                    else neighbors.Add(path.node1);
+                    if ((path.pathState == Path.PathState.Good && includeGood) ||
+                        (path.pathState == Path.PathState.Maybe && includeMaybe) ||
+                        (path.pathState == Path.PathState.Bad && includeBad))
+                    {
+                        if (path.node1 == this) neighbors.Add(path.node2);
+                        else neighbors.Add(path.node1);
+                    }
                 }
 
                 return neighbors;
+            }
+
+            public HashSet<Node> FindGraph(bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
+            {
+                HashSet<Node> unprocessedNodes = new HashSet<Node>();
+                unprocessedNodes.Add(this);
+
+                HashSet<Node> processedNodes = new HashSet<Node>();
+                while (unprocessedNodes.Count > 0)
+                {
+                    Node node = unprocessedNodes.First();
+                    unprocessedNodes.Remove(node);
+                    processedNodes.Add(node);
+
+                    HashSet<Node> newNodes = node.Neighbors(includeGood, includeMaybe, includeBad);
+                    newNodes.ExceptWith(processedNodes);
+                    unprocessedNodes.UnionWith(newNodes);
+                }
+
+                return processedNodes;
+            }
+
+            public static void UpdateGraphColor(HashSet<Node> graph)
+            {
+                HashSet<int> colorIndices = new HashSet<int>();
+
+                foreach (Node node in graph)
+                {
+                    if (node.isEndpoint) colorIndices.Add(node.colorIndex);
+                }
+
+                if (colorIndices.Count == 1)
+                {
+                    int colorIndex = colorIndices.First();
+                    foreach (Node node in graph)
+                    {
+                        node.colorIndex = colorIndex;
+                    }
+                }
+            }
+
+            public int PathCount(bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
+            {
+                int count = 0;
+
+                for (int pathIndex = 0; pathIndex < 4; pathIndex++)
+                {
+                    Path path = paths[pathIndex];
+                    if (path == null) continue;
+
+                    if ((path.pathState == Path.PathState.Good && includeGood) ||
+                        (path.pathState == Path.PathState.Maybe && includeMaybe) ||
+                        (path.pathState == Path.PathState.Bad && includeBad))
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+
+            public HashSet<Path> PathSet(bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
+            {
+                HashSet<Path> pathSet = new HashSet<Path>();
+
+                for (int pathIndex = 0; pathIndex < 4; pathIndex++)
+                {
+                    Path path = paths[pathIndex];
+                    if (path == null) continue;
+
+                    if ((path.pathState == Path.PathState.Good && includeGood) ||
+                        (path.pathState == Path.PathState.Maybe && includeMaybe) ||
+                        (path.pathState == Path.PathState.Bad && includeBad))
+                    {
+                        pathSet.Add(path);
+                    }
+                }
+
+                return pathSet;
+            }
+
+
+            private Node Up(HashSet<Node> graph)
+            {
+                Path upPath = paths[3];
+                if (upPath == null) return null;
+
+                Node upNode = upPath.OtherNode(this);
+
+                if (graph.Contains(upNode))
+                {
+                    return upNode;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
+            private (Node, int) NextLeft(HashSet<Node> graph, int previousDirection)
+            {
+                int direction = previousDirection - 1; //optimal direction, traverse rightwardward from here
+                if (direction == -1) direction = 3; //stupid clock arithmetic
+
+                for (int i = 0; i < 4; i++)
+                {
+                    Path path = paths[direction];
+                    if (path == null) //if not valid
+                    {
+                        direction = (direction + 1) % 4;
+                        continue;
+                    }
+
+                    Node otherNode = path.OtherNode(this);
+                    if (graph.Contains(otherNode))
+                    {
+                        return (otherNode, direction);
+                    }
+
+                    direction = (direction + 1) % 4;
+                }
+
+                return (null, -1); //shouldn't happen
+            }
+
+            public static List<Node> ClockwiseBorder(HashSet<Node> graph)
+            {
+                Node topNode = graph.First();
+                while (topNode.Up(graph) != null) topNode = topNode.Up(graph); //find the border
+
+                List<Node> borderNodes = new List<Node>();
+
+                (Node, int) borderData = topNode.NextLeft(graph, 0);
+                Node firstNode = borderData.Item1;
+                int firstDirection = borderData.Item2;
+                borderNodes.Add(firstNode);
+
+                Node thisNode = firstNode;
+                int thisDirection = firstDirection;
+                while (true)
+                {
+                    borderData = thisNode.NextLeft(graph, thisDirection);
+                    thisNode = borderData.Item1;
+                    thisDirection = borderData.Item2;
+
+                    if (thisNode == firstNode && thisDirection == firstDirection)
+                    {
+                        break; //we've come full circle, we done
+                    }
+                    else
+                    {
+                        borderNodes.Add(thisNode);
+                    }
+                }
+
+                return borderNodes;
             }
 
             public void OrganizedEdgeDraw()
@@ -177,11 +398,12 @@ namespace Flow
 
         
 
-        protected Node[,] _allNodes;
+        protected HashSet<Node> _allNodes;
+        protected HashSet<Path> _allPaths;
         public Puzzle(Graph graph)
         {
-
-            _allNodes = new Node[Flow.GraphDim, Flow.GraphDim];
+            _allNodes = new HashSet<Node>();
+            Node[,] allNodes = new Node[Flow.GraphDim, Flow.GraphDim];
             for (int i = 0; i < Flow.GraphDim; i++)
             {
                 for (int j = 0; j < Flow.GraphDim; j++)
@@ -190,11 +412,14 @@ namespace Flow
                     if (vertex == null || vertex.Type == Vertex.VertexType.Bridge) continue;
 
                     int numPaths = (vertex.Type == Vertex.VertexType.Standard) ? 2 : 1;
-                    _allNodes[i, j] = new Node(i, j, numPaths);
+                    Node newNode = new Node(i, j, numPaths);
+                    allNodes[i, j] = newNode;
+                    _allNodes.Add(newNode);
 
                     if (vertex.Type == Vertex.VertexType.Endpoint)
                     {
-                        _allNodes[i, j].colorIndex = vertex.ColorIndex;
+                        newNode.colorIndex = vertex.ColorIndex;
+                        newNode.isEndpoint = true;
                     }
                 }
             }
@@ -213,11 +438,14 @@ namespace Flow
 
                         if (leftVertex.Type != Vertex.VertexType.Bridge && rightVertex.Type != Vertex.VertexType.Bridge)
                         {
-                            Path newPath = new Path(_allNodes[i, j], _allNodes[i + 1, j]);
+                            Path newPath = new Path(allNodes[i, j], allNodes[i + 1, j]);
                         }
                         else if (leftVertex.Type != Vertex.VertexType.Bridge && rightVertex.Type == Vertex.VertexType.Bridge)
                         {
-                            BridgePath newPath = new BridgePath(_allNodes[i, j], _allNodes[i + 2, j]);
+                            int nextNonBridgeX = i + 2;
+                            while (graph.getVertex(nextNonBridgeX, j).Type == Vertex.VertexType.Bridge) nextNonBridgeX++;
+
+                            BridgePath newPath = new BridgePath(allNodes[i, j], allNodes[nextNonBridgeX, j]);
                         }
                         // other bridge cases don't bother (redundant)
                     }
@@ -238,7 +466,7 @@ namespace Flow
                         int y2 = otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2;
                         if (graph.getVertex(x1, y1) != null)
                         {
-                            PortalPath newPath = new PortalPath(_allNodes[x1, y1], _allNodes[x2, y2],
+                            PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X2 : edge.X1, edge.PointFirst ? edge.Y2 : edge.Y1,
                                 otherEdge.PointFirst ? otherEdge.X2 : otherEdge.X1, otherEdge.PointFirst ? otherEdge.Y2 : otherEdge.Y1);
                         }
@@ -251,7 +479,7 @@ namespace Flow
 
                         if (graph.getVertex(x1, y1) != null)
                         {
-                            PortalPath newPath = new PortalPath(_allNodes[x1, y1], _allNodes[x2, y2],
+                            PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X1 : edge.X2, edge.PointFirst ? edge.Y1 : edge.Y2,
                                 otherEdge.PointFirst ? otherEdge.X1 : otherEdge.X2, otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2);
                         }
@@ -276,11 +504,14 @@ namespace Flow
 
                         if (topVertex.Type != Vertex.VertexType.Bridge && bottomVertex.Type != Vertex.VertexType.Bridge)
                         {
-                            Path newPath = new Path(_allNodes[i, j], _allNodes[i, j + 1]);
+                            Path newPath = new Path(allNodes[i, j], allNodes[i, j + 1]);
                         }
                         else if (topVertex.Type != Vertex.VertexType.Bridge && bottomVertex.Type == Vertex.VertexType.Bridge)
                         {
-                            BridgePath newPath = new BridgePath(_allNodes[i, j], _allNodes[i, j + 2]);
+                            int nextNonBridgeY = j + 2;
+                            while (graph.getVertex(i, nextNonBridgeY).Type == Vertex.VertexType.Bridge) nextNonBridgeY++;
+
+                            BridgePath newPath = new BridgePath(allNodes[i, j], allNodes[i, nextNonBridgeY]);
                         }
                         // other bridge cases don't bother (redundant)
                     }
@@ -301,7 +532,7 @@ namespace Flow
                         int y2 = otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2;
                         if (graph.getVertex(x1, y1) != null)
                         {
-                            PortalPath newPath = new PortalPath(_allNodes[x1, y1], _allNodes[x2, y2],
+                            PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X2 : edge.X1, edge.PointFirst ? edge.Y2 : edge.Y1,
                                 otherEdge.PointFirst ? otherEdge.X2 : otherEdge.X1, otherEdge.PointFirst ? otherEdge.Y2 : otherEdge.Y1);
                         }
@@ -314,7 +545,7 @@ namespace Flow
 
                         if (graph.getVertex(x1, y1) != null)
                         {
-                            PortalPath newPath = new PortalPath(_allNodes[x1, y1], _allNodes[x2, y2],
+                            PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X1 : edge.X2, edge.PointFirst ? edge.Y1 : edge.Y2,
                                 otherEdge.PointFirst ? otherEdge.X1 : otherEdge.X2, otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2);
                         }
@@ -325,39 +556,41 @@ namespace Flow
             }
 
 
+            _allPaths = new HashSet<Path>();
+            foreach (Node node in _allNodes)
+            {
+                for (int pathIndex = 0; pathIndex < 4; pathIndex++)
+                {
+                    Path path = node.paths[pathIndex];
+                    if (path == null) continue;
+                    _allPaths.Add(path);
+                }
+            }
         }
 
 
         public void Draw()
         {
-            for (int i = 0; i < Flow.GraphDim; i++)
+            foreach (Node node in _allNodes)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
-                {
-                    if (_allNodes[i, j] != null) _allNodes[i, j].OrganizedEdgeDraw();
-                }
+                node.OrganizedEdgeDraw();
             }
         }
 
         private bool checkPathCounts()
         {
-            for (int i = 0; i < Flow.GraphDim; i++)
-            {
-                for (int j = 0; j < Flow.GraphDim; j++)
+            foreach (Node node in _allNodes)
+            { 
+                int goodPathCount = 0;
+                for (int pathIndex = 0; pathIndex < 4; pathIndex++)
                 {
-                    Node node = _allNodes[i, j];
-                    if (node == null) continue;
-
-                    int goodPathCount = 0;
-                    for (int pathIndex = 0; pathIndex < 4; pathIndex++)
-                    {
-                        Path path = node.paths[pathIndex];
-                        if (path == null) continue;
-                        if (path.pathState == Path.PathState.Maybe) return false;
-                        if (path.pathState == Path.PathState.Good) goodPathCount++;
-                    }
-                    if (goodPathCount != node.numPaths) return false;
+                    Path path = node.paths[pathIndex];
+                    if (path == null) continue;
+                    if (path.pathState == Path.PathState.Maybe) return false;
+                    if (path.pathState == Path.PathState.Good) goodPathCount++;
                 }
+                if (goodPathCount != node.numPaths) return false;
+                
             }
             return true;
         }
@@ -370,39 +603,21 @@ namespace Flow
                 nodesByColor[i] = new HashSet<Node>();
             }
 
-            for (int i = 0; i < Flow.GraphDim; i++)
+            foreach (Node node in _allNodes)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
-                {
-                    Node node = _allNodes[i, j];
-                    if (node == null) continue;
                     if (node.colorIndex == -1) return false; //uncolored node is bad
-                    nodesByColor[i].Add(node);
-                }
+                    nodesByColor[node.colorIndex].Add(node);
             }
 
             for (int i = 0; i < 16; i++)
             {
-                HashSet<Node> oldNodes = nodesByColor[i];
-                if (oldNodes.Count == 0) continue;
+                HashSet<Node> coloredNodes = nodesByColor[i];
+                if (coloredNodes.Count == 0) continue;
 
-                Node firstNode = oldNodes.First();
-                oldNodes.Remove(firstNode);
-                HashSet<Node> newNodes = new HashSet<Node>();
-                newNodes.Add(firstNode);
+                Node firstNode = coloredNodes.First();
+                HashSet<Node> connectedNodes = firstNode.FindGraph(true, false, false);
 
-                while (newNodes.Count > 0)
-                {
-                    Node nextNode = newNodes.First();
-                    newNodes.Remove(nextNode);
-
-                    HashSet<Node> neighbors = nextNode.Neighbors();
-                    neighbors.Intersect(oldNodes);
-                    oldNodes.ExceptWith(neighbors);
-                    newNodes.Union(neighbors);
-                }
-
-                if (oldNodes.Count > 0) return false; //if not all connected, then false
+                if (!coloredNodes.SetEquals(connectedNodes)) return false; //if not all connected, then false
             }
 
             return true;
@@ -416,8 +631,8 @@ namespace Flow
             }
         }
 
-        public abstract void PerformMove();
-
+        public abstract void Forward();
+        public abstract void Back();
 
 
     }

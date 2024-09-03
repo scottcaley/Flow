@@ -192,31 +192,8 @@ namespace Flow
 
         public void DrawBridgePath(int x1, int y1, int x2, int y2, Color color, bool isGuess)
         {
-            if (x1 != x2)
-            {
-                int x = Math.Min(x1, x2);
-                int y = y1;
-                Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y) - Flow.CellDim / 16, Flow.CellDim * 2, Flow.CellDim / 8),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y), Flow.CellDim * 2, 1),
-                    null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
-            }
-            else
-            {
-                int x = x1;
-                int y = Math.Min(y1, y2);
-                Draw(_lineTexture, new Rectangle(ToCenterPixel(x) - Flow.CellDim / 16, ToCenterPixel(y), Flow.CellDim / 8, Flow.CellDim * 2),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y), 1, Flow.CellDim * 2),
-                    null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
-            }
-
+            DrawThickLine(ToCenterPixel(x1), ToCenterPixel(y1), ToCenterPixel(x2), ToCenterPixel(y2), color);
+            if (isGuess) DrawThinLine(ToCenterPixel(x1), ToCenterPixel(y1), ToCenterPixel(x2), ToCenterPixel(y2), color);
         }
 
         public void DrawPortalPath(int x1, int y1, int x2, int y2, int x1Dest, int y1Dest, int x2Dest, int y2Dest, Color color, bool isGuess)

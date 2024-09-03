@@ -31,10 +31,61 @@ namespace Flow
                 return isClicking && !wasClicking;
             }
         }
+
+        private static bool wasPressingSpace = false;
+        private static bool isPressingSpace = false;
+        private static int spacePressFrames = 0;
+        public static bool JustPressedSpace
+        {
+            get
+            {
+                return isPressingSpace && !wasPressingSpace;
+            }
+        }
+        public static double SpacePressDuration
+        {
+            get
+            {
+                return (double)spacePressFrames * Flow.FrameTime;
+            }
+        }
+
+        private static bool wasPressingZ = false;
+        private static bool isPressingZ = false;
+        private static int zPressFrames = 0;
+        public static bool JustPressedZ
+        {
+            get
+            {
+                return isPressingZ && !wasPressingZ;
+            }
+        }
+        public static double ZPressDuration
+        {
+            get
+            {
+                return (double)zPressFrames * Flow.FrameTime;
+            }
+        }
+
+
+
         public static void Update()
         {
+            KeyboardState keyboardState = Keyboard.GetState();
+
             wasClicking = isClicking;
             isClicking = Mouse.GetState().LeftButton == ButtonState.Pressed;
+
+            wasPressingSpace = isPressingSpace;
+            isPressingSpace = keyboardState.IsKeyDown(Keys.Space);
+            if (isPressingSpace) spacePressFrames++;
+            else spacePressFrames = 0;
+
+            wasPressingZ = isPressingZ;
+            isPressingZ = keyboardState.IsKeyDown(Keys.Z);
+            if (isPressingZ) zPressFrames++;
+            else zPressFrames = 0;
         }
 
         public static KeyboardInputType GetKeyboardInputType()
