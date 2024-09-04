@@ -134,7 +134,7 @@ namespace Flow
             (int, int) coordinates = NodeCoordinates();
             int x = coordinates.Item1;
             int y = coordinates.Item2;
-            return (0 <= x && x < Flow.GraphDim && 0 <= y && y < Flow.GraphDim);
+            return (0 <= x && x < Flow.GraphDimX && 0 <= y && y < Flow.GraphDimY);
         }
 
         public static (int, int, int, int) EdgeCoordinates()
@@ -175,7 +175,7 @@ namespace Flow
             int y2 = coordinates.Item4;
 
             return
-                (-1 <= x1 && x1 < Flow.GraphDim && -1 <= y1 && y1 < Flow.GraphDim) &&
+                (-1 <= x1 && x1 < Flow.GraphDimX && -1 <= y1 && y1 < Flow.GraphDimY) &&
                 ((x1 + 1 == x2 && y1 >= 0) || (y1 + 1 == y2 && x1 >= 0));
         }
     }

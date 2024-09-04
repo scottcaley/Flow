@@ -132,74 +132,116 @@ namespace Flow
                 null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawPath(int x1, int y1, int x2, int y2, Color color, bool isGuess)
+
+        public void DrawPath(int x1, int y1, int x2, int y2, Color color)
         {
+            int xPixel;
+            int width;
+            int yPixel;
+            int height;
+
             if (x1 != x2) //horizontal path
             {
-                int x = Math.Min(x1, x2);
-                int y = y1;
-                Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y) - Flow.CellDim / 16, Flow.CellDim, Flow.CellDim / 8),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y), Flow.CellDim, 1),
-                        null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
+                xPixel = ToCenterPixel(Math.Min(x1, x2));
+                width = Flow.CellDim * Math.Abs(x1 - x2);
+                yPixel = ToCenterPixel(y1) - Flow.CellDim / 16;
+                height = Flow.CellDim / 8;
             }
             else //vertical path
             {
-                int x = x1;
-                int y = Math.Min(y1, y2);
-                Draw(_lineTexture, new Rectangle(ToCenterPixel(x) - Flow.CellDim / 16, ToCenterPixel(y), Flow.CellDim / 8, Flow.CellDim),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(y), 1, Flow.CellDim),
-                        null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
+                xPixel = ToCenterPixel(x1) - Flow.CellDim / 16;
+                width = Flow.CellDim / 8;
+                yPixel = ToCenterPixel(Math.Min(y1, y2));
+                height = Flow.CellDim * Math.Abs(y1 - y2);
             }
+
+            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
+                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        private void DrawHalfPath(int x, int y, int xDest, int yDest, Color color, bool isGuess)
+        public void DrawPathX(int x1, int y1, int x2, int y2, Color color)
         {
+            int xPixel;
+            int width;
+            int yPixel;
+            int height;
+
+            if (x1 != x2) //horizontal path
+            {
+                xPixel = ToCenterPixel(Math.Min(x1, x2));
+                width = Flow.CellDim * Math.Abs(x1 - x2);
+                yPixel = ToCenterPixel(y1);
+                height = 1;
+            }
+            else //vertical path
+            {
+                xPixel = ToCenterPixel(x1);
+                width = 1;
+                yPixel = ToCenterPixel(Math.Min(y1, y2));
+                height = Flow.CellDim * Math.Abs(y1 - y2);
+            }
+
+            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
+                    null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
+        }
+        
+        public void DrawHalfPath(int x, int y, int xDest, int yDest, Color color)
+        {
+            int xPixel;
+            int width;
+            int yPixel;
+            int height;
+
             if (x != xDest) //horizontal path
             {
-                int xPixel;
-                if (x < xDest) xPixel = ToCenterPixel(x);
-                else xPixel = ToCenterPixel(xDest) + Flow.CellDim / 2;
-                Draw(_lineTexture, new Rectangle(xPixel, ToCenterPixel(y) - Flow.CellDim / 16, Flow.CellDim / 2, Flow.CellDim / 8),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(Math.Min(x, xDest)), ToCenterPixel(y), Flow.CellDim, 1),
-                        null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
+                xPixel = x < xDest ? ToCenterPixel(x) : ToCenterPixel(xDest) + Flow.CellDim / 2;
+                width = Flow.CellDim / 2;
+                yPixel = ToCenterPixel(y) - Flow.CellDim / 16;
+                height = Flow.CellDim / 8;
             }
             else //vertical path
             {
-                int yPixel;
-                if (y < yDest) yPixel = ToCenterPixel(y);
-                else yPixel = ToCenterPixel(yDest) + Flow.CellDim / 2;
-                Draw(_lineTexture, new Rectangle(ToCenterPixel(x) - Flow.CellDim / 16, yPixel, Flow.CellDim / 8, Flow.CellDim / 2),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                if (isGuess)
-                {
-                    Draw(_lineTexture, new Rectangle(ToCenterPixel(x), ToCenterPixel(Math.Min(y, yDest)), Flow.CellDim, 1),
-                        null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
-                }
+                xPixel = ToCenterPixel(x) - Flow.CellDim / 16;
+                width = Flow.CellDim / 8;
+                yPixel = y < yDest ? ToCenterPixel(y) : ToCenterPixel(yDest) + Flow.CellDim / 2;
+                height = Flow.CellDim / 8;
             }
+
+            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
+                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawBridgePath(int x1, int y1, int x2, int y2, Color color, bool isGuess)
+        public void DrawHalfPathX(int x, int y, int xDest, int yDest, Color color)
         {
-            DrawThickLine(ToCenterPixel(x1), ToCenterPixel(y1), ToCenterPixel(x2), ToCenterPixel(y2), color);
-            if (isGuess) DrawThinLine(ToCenterPixel(x1), ToCenterPixel(y1), ToCenterPixel(x2), ToCenterPixel(y2), color);
+            int xPixel;
+            int width;
+            int yPixel;
+            int height;
+
+            if (x != xDest) //horizontal path
+            {
+                xPixel = x < xDest ? ToCenterPixel(x) : ToCenterPixel(xDest) + Flow.CellDim / 2;
+                width = Flow.CellDim / 2;
+                yPixel = ToCenterPixel(y);
+                height = 1;
+            }
+            else //vertical path
+            {
+                xPixel = ToCenterPixel(x);
+                width = Flow.CellDim / 8;
+                yPixel = y < yDest ? ToCenterPixel(y) : ToCenterPixel(yDest) + Flow.CellDim / 2;
+                height = 1;
+            }
+
+            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
+                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawPortalPath(int x1, int y1, int x2, int y2, int x1Dest, int y1Dest, int x2Dest, int y2Dest, Color color, bool isGuess)
+
+        public void DisplayLine(String line)
         {
-            DrawHalfPath(x1, y1, x1Dest, y1Dest, color, isGuess);
-            DrawHalfPath(x2, y2, x2Dest, y2Dest, color, isGuess);
+
         }
+
     }
 }

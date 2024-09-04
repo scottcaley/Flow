@@ -7,9 +7,10 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDim = 6;
-        public const int CellDim = 192;
-        public const double FrameTime = 1.0 / 10.0;
+        public const int GraphDimX = 8;
+        public const int GraphDimY = 8;
+        public const int CellDim = 128;
+        public const double FrameTime = 1.0 / 60.0;
 
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
         public static readonly Color GoodColor = Color.White;
@@ -47,8 +48,8 @@ namespace Flow
             IsMouseVisible = true;
             TargetElapsedTime = TimeSpan.FromSeconds(FrameTime);
 
-            Graphics.PreferredBackBufferWidth = CellDim * (GraphDim + 2);
-            Graphics.PreferredBackBufferHeight = CellDim * (GraphDim + 2);
+            Graphics.PreferredBackBufferWidth = CellDim * (GraphDimX + 2);
+            Graphics.PreferredBackBufferHeight = CellDim * (GraphDimY + 3);
             Graphics.ApplyChanges();
         }
 

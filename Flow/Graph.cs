@@ -12,21 +12,21 @@ namespace Flow
     {
         private Vertex[,] _vertices;
         public Vertex getVertex(int x, int y) {
-            if (!(0 <= x && x < Flow.GraphDim && 0 <= y && y < Flow.GraphDim)) return null;
+            if (!(0 <= x && x < Flow.GraphDimX && 0 <= y && y < Flow.GraphDimY)) return null;
             return _vertices[x, y];
         }
-        private Edge[,] _horizontalEdges;
-        private Edge[,] _verticalEdges;
+        private Edge[,] _horizontalEdges; //vertical displacement
+        private Edge[,] _verticalEdges; //horizontal displacement
         public Edge getEdge(int x1, int y1, int x2, int y2)
         {
-            if (x1 + 1 == x2)
+            if (x1 + 1 == x2 && y1 == y2)
             {
-                if (!(0 <= x1 && x2 < Flow.GraphDim + 1 && 0 <= y1 && y1 < Flow.GraphDim)) return null;
+                if (!(0 <= x1 && x2 < Flow.GraphDimX + 1 && 0 <= y1 && y1 < Flow.GraphDimY)) return null;
                 return _verticalEdges[x2, y2];
             }
-            else if (y1 + 1 == y2)
+            else if (y1 + 1 == y2 && x1 == x2)
             {
-                if (!(0 <= y1 && y2 < Flow.GraphDim + 1 && 0 <= x1 && x1 < Flow.GraphDim)) return null;
+                if (!(0 <= y1 && y2 < Flow.GraphDimY + 1 && 0 <= x1 && x1 < Flow.GraphDimX)) return null;
                 return _horizontalEdges[x2, y2];
             }
             else return null;
@@ -39,24 +39,31 @@ namespace Flow
         public int NumPortalEdges;
         public Graph()
         {
-            _vertices = new Vertex[Flow.GraphDim, Flow.GraphDim];
-            _horizontalEdges = new Edge[Flow.GraphDim, Flow.GraphDim + 1];
-            _verticalEdges = new Edge[Flow.GraphDim + 1, Flow.GraphDim];
+            _vertices = new Vertex[Flow.GraphDimX, Flow.GraphDimY];
+            _horizontalEdges = new Edge[Flow.GraphDimX, Flow.GraphDimY + 1];
+            _verticalEdges = new Edge[Flow.GraphDimX + 1, Flow.GraphDimY];
 
-            for (int i = 0; i < Flow.GraphDim; i++)
+            for (int i = 0; i < Flow.GraphDimX; i++)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
+                for (int j = 0; j < Flow.GraphDimY; j++)
                 {
                     _vertices[i, j] = new Vertex(i, j);
                 }
             }
 
-            for (int i = 0; i < Flow.GraphDim; i++)
+            for (int i = 0; i < Flow.GraphDimX; i++)
             {
-                for (int j = 0; j < Flow.GraphDim + 1; j++)
+                for (int j = 0; j < Flow.GraphDimY + 1; j++)
                 {
                     _horizontalEdges[i, j] = new Edge(i, j - 1, i, j);
-                    _verticalEdges[j, i] = new Edge(j - 1, i, j, i);
+                }
+            }
+
+            for (int i = 0; i < Flow.GraphDimX + 1; i++)
+            {
+                for (int j = 0; j < Flow.GraphDimY; j++)
+                {
+                    _verticalEdges[i, j] = new Edge(i - 1, j, i, j);
                 }
             }
 
@@ -140,11 +147,11 @@ namespace Flow
             //left
             if (x == 0 || _vertices[x - 1, y] == null) _verticalEdges[x, y] = null;
             //right
-            if (x == Flow.GraphDim - 1 || _vertices[x + 1, y] == null) _verticalEdges[x + 1, y] = null;
+            if (x == Flow.GraphDimX - 1 || _vertices[x + 1, y] == null) _verticalEdges[x + 1, y] = null;
             //top
             if (y == 0 || _vertices[x, y - 1] == null) _horizontalEdges[x, y] = null;
             //bottom
-            if (y == Flow.GraphDim - 1 || _vertices[x, y + 1] == null) _horizontalEdges[x, y + 1] = null;
+            if (y == Flow.GraphDimY - 1 || _vertices[x, y + 1] == null) _horizontalEdges[x, y + 1] = null;
         }
 
         public void Finish()

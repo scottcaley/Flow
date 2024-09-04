@@ -24,8 +24,15 @@ namespace Flow
                 Good
             }
 
+            public static PathState Opposite(PathState pathState)
+            {
+                if (pathState == PathState.Bad) return PathState.Good;
+                else if (pathState == PathState.Maybe) return PathState.Maybe;
+                else return PathState.Bad;
+            }
+
             public PathState pathState;
-            public bool isGuess;
+            public bool isCertain;
 
             public readonly Node node1;
             public readonly Node node2;
@@ -37,7 +44,7 @@ namespace Flow
                 pathState = PathState.Maybe;
                 this.node1 = node1;
                 this.node2 = node2;
-                isGuess = false;
+                isCertain = true;
 
                 if (isStandardPath) AssignNodes();
             }
@@ -83,8 +90,12 @@ namespace Flow
 
             public virtual void Draw()
             {
-                if (pathState == PathState.Bad) return;
-                Flow.Sd.DrawPath(node1.x, node1.y, node2.x, node2.y, GetColor(), isGuess);
+                if (pathState == PathState.Bad && !isCertain) Flow.Sd.DrawPathX(node1.x, node1.y, node2.x, node2.y, Color.White);
+                else if (pathState != PathState.Bad)
+                {
+                    Flow.Sd.DrawPath(node1.x, node1.y, node2.x, node2.y, GetColor());
+                    if (!isCertain) Flow.Sd.DrawPathX(node1.x, node1.y, node2.x, node2.y, Color.Black);
+                }
             }
 
         }
@@ -122,10 +133,10 @@ namespace Flow
                 assignNodeOffOne(node2, dest2X, dest2Y);
             }
 
-            public override void Draw()
+            /*public override void Draw()
             {
-                Flow.Sd.DrawBridgePath(node1.x, node1.y, node2.x, node2.y, GetColor(), isGuess);
-            }
+               not necessary 
+            }*/
         }
 
         public class PortalPath : Path
@@ -153,7 +164,21 @@ namespace Flow
 
             public override void Draw()
             {
-                Flow.Sd.DrawPortalPath(node1.x, node1.y, node2.x, node2.y, dest1X, dest1Y, dest2X, dest2Y, GetColor(), isGuess);
+                if (pathState == PathState.Bad && !isCertain)
+                {
+                    Flow.Sd.DrawHalfPathX(node1.x, node1.y, dest1X, dest1Y, Color.White);
+                    Flow.Sd.DrawHalfPathX(node2.x, node2.y, dest2X, dest2Y, Color.White);
+                }
+                else if (pathState != PathState.Bad)
+                {
+                    Flow.Sd.DrawHalfPath(node1.x, node1.y, dest1X, dest1Y, GetColor());
+                    Flow.Sd.DrawHalfPath(node2.x, node2.y, dest2X, dest2Y, GetColor());
+                    if (!isCertain)
+                    {
+                        Flow.Sd.DrawHalfPathX(node1.x, node1.y, dest1X, dest1Y, Color.Black);
+                        Flow.Sd.DrawHalfPathX(node2.x, node2.y, dest2X, dest2Y, Color.Black);
+                    }
+                }
             }
         }
 
@@ -400,13 +425,14 @@ namespace Flow
 
         protected HashSet<Node> _allNodes;
         protected HashSet<Path> _allPaths;
+        protected String actionLine;
         public Puzzle(Graph graph)
         {
             _allNodes = new HashSet<Node>();
-            Node[,] allNodes = new Node[Flow.GraphDim, Flow.GraphDim];
-            for (int i = 0; i < Flow.GraphDim; i++)
+            Node[,] allNodes = new Node[Flow.GraphDimX, Flow.GraphDimY];
+            for (int i = 0; i < Flow.GraphDimX; i++)
             {
-                for (int j = 0; j < Flow.GraphDim; j++)
+                for (int j = 0; j < Flow.GraphDimY; j++)
                 {
                     Vertex vertex = graph.getVertex(i, j);
                     if (vertex == null || vertex.Type == Vertex.VertexType.Bridge) continue;
@@ -424,9 +450,9 @@ namespace Flow
                 }
             }
 
-            for (int i = -1; i < Flow.GraphDim; i++)
+            for (int i = -1; i < Flow.GraphDimX; i++)
             {
-                for (int j = -1; j < Flow.GraphDim; j++)
+                for (int j = -1; j < Flow.GraphDimY; j++)
                 {
                     Edge edge = graph.getEdge(i, j, i + 1, j);
                     if (edge == null) continue;
@@ -490,9 +516,9 @@ namespace Flow
             }
 
 
-            for (int i = -1; i < Flow.GraphDim; i++)
+            for (int i = -1; i < Flow.GraphDimX; i++)
             {
-                for (int j = -1; j < Flow.GraphDim; j++)
+                for (int j = -1; j < Flow.GraphDimY; j++)
                 {
                     Edge edge = graph.getEdge(i, j, i, j + 1);
                     if (edge == null) continue;
@@ -566,6 +592,8 @@ namespace Flow
                     _allPaths.Add(path);
                 }
             }
+
+            actionLine = "test";
         }
 
 
@@ -575,6 +603,8 @@ namespace Flow
             {
                 node.OrganizedEdgeDraw();
             }
+
+            Flow.Sd.DisplayLine(actionLine);
         }
 
         private bool checkPathCounts()
