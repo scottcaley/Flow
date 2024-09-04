@@ -482,6 +482,12 @@ namespace Flow
                 || BorderScanDerivation(_markedBorderScan));
         }
 
+        private String GenerateActionLine(Move move)
+        {
+            return move.path + " changed from " + move.pathState + " to " + move.path.pathState + " via " + move.reason;
+        }
+
+
         private bool PerformNextMove()
         {
             if (_incomingMoves.Count == 0) return false;
@@ -494,6 +500,8 @@ namespace Flow
             UpdateColors(move.path, move.pathState);
 
             if (_numBack > 0) _numBack--;
+
+            _actionLine = GenerateActionLine(move);
 
             return true;
         }
@@ -516,6 +524,8 @@ namespace Flow
             UpdateColors(move.path, move.pathState);
 
             _numBack++;
+
+            _actionLine = "Undoing";
 
             return true;
         }

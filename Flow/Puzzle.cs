@@ -76,6 +76,11 @@ namespace Flow
                 assignNodeOffOne(node2, node1.x, node1.y);
             }
 
+            public override String ToString()
+            {
+                return "path from (" + node1.x + ", " + node1.y + ") to (" + node2.x + ", " + node2.y + ")";
+            }
+
             protected void assignNodeOffOne(Node node, int destX, int destY)
             {
                 //check if they are actually supposed to be doing this
@@ -132,6 +137,10 @@ namespace Flow
                 assignNodeOffOne(node1, dest1X, dest1Y);
                 assignNodeOffOne(node2, dest2X, dest2Y);
             }
+            public override String ToString()
+            {
+                return "bridge-path from (" + node1.x + ", " + node1.y + ") to (" + node2.x + ", " + node2.y + ")";
+            }
 
             /*public override void Draw()
             {
@@ -160,6 +169,12 @@ namespace Flow
             {
                 assignNodeOffOne(node1, dest1X, dest1Y);
                 assignNodeOffOne(node2, dest2X, dest2Y);
+            }
+
+            public override String ToString()
+            {
+                return "portal-path from (" + node1.x + ", " + node1.y + ") with dest (" + dest1X + ", " + dest1Y + ")" +
+                    " to (" + node2.x + ", " + node2.y + ") with dest (" + dest2X + ", " + dest2Y + ")";
             }
 
             public override void Draw()
@@ -425,7 +440,7 @@ namespace Flow
 
         protected HashSet<Node> _allNodes;
         protected HashSet<Path> _allPaths;
-        protected String actionLine;
+        protected String _actionLine;
         public Puzzle(Graph graph)
         {
             _allNodes = new HashSet<Node>();
@@ -593,7 +608,7 @@ namespace Flow
                 }
             }
 
-            actionLine = "test";
+            _actionLine = "Begin";
         }
 
 
@@ -604,7 +619,7 @@ namespace Flow
                 node.OrganizedEdgeDraw();
             }
 
-            Flow.Sd.DisplayLine(actionLine);
+            Flow.Sd.DisplayLine(_actionLine);
         }
 
         private bool checkPathCounts()

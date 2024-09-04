@@ -7,10 +7,10 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDimX = 8;
-        public const int GraphDimY = 8;
+        public const int GraphDimX = 5;
+        public const int GraphDimY = 5;
         public const int CellDim = 128;
-        public const double FrameTime = 1.0 / 60.0;
+        public const double FrameTime = 1.0 / 15.0;
 
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
         public static readonly Color GoodColor = Color.White;
@@ -65,7 +65,7 @@ namespace Flow
 
         protected override void LoadContent()
         {
-            Sd = new ShapeDrawer(GraphicsDevice);
+            Sd = new ShapeDrawer(GraphicsDevice, Content.Load<SpriteFont>("Fonts/File"));
 
             // TODO: use this.Content to load your game content here
         }

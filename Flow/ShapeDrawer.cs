@@ -12,16 +12,18 @@ namespace Flow
     {
         private GraphicsDevice _device;
         private Texture2D _lineTexture;
+        private SpriteFont _font;
         public GraphicsDevice Device
         {
             get { return _device; }
         }
-        public ShapeDrawer(GraphicsDevice graphicsDevice) : base(graphicsDevice)
+        public ShapeDrawer(GraphicsDevice graphicsDevice, SpriteFont font) : base(graphicsDevice)
         {
             _device = graphicsDevice;
 
             _lineTexture = new Texture2D(_device, 1, 1);
             _lineTexture.SetData(new[] { Color.White });
+            _font = font;
         }
 
         private static int ToCenterPixel(int coordinate)
@@ -240,7 +242,7 @@ namespace Flow
 
         public void DisplayLine(String line)
         {
-
+            DrawString(_font, line, new Vector2(Flow.CellDim, (2 + Flow.GraphDimY) * Flow.CellDim), Color.White);
         }
 
     }
