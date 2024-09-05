@@ -184,7 +184,7 @@ namespace Flow
             }
 
             Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
-                    null, Color.Black, 0f, Vector2.Zero, SpriteEffects.None, 0);
+                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
         
         public void DrawHalfPath(int x, int y, int xDest, int yDest, Color color)
@@ -206,7 +206,7 @@ namespace Flow
                 xPixel = ToCenterPixel(x) - Flow.CellDim / 16;
                 width = Flow.CellDim / 8;
                 yPixel = y < yDest ? ToCenterPixel(y) : ToCenterPixel(yDest) + Flow.CellDim / 2;
-                height = Flow.CellDim / 8;
+                height = Flow.CellDim / 2;
             }
 
             Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
@@ -230,9 +230,9 @@ namespace Flow
             else //vertical path
             {
                 xPixel = ToCenterPixel(x);
-                width = Flow.CellDim / 8;
+                width = 1;
                 yPixel = y < yDest ? ToCenterPixel(y) : ToCenterPixel(yDest) + Flow.CellDim / 2;
-                height = 1;
+                height = Flow.CellDim / 2;
             }
 
             Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),

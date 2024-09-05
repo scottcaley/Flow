@@ -10,7 +10,7 @@ namespace Flow
         public const int GraphDimX = 5;
         public const int GraphDimY = 5;
         public const int CellDim = 128;
-        public const double FrameTime = 1.0 / 15.0;
+        public const double FrameTime = 1.0 / 30.0;
 
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
         public static readonly Color GoodColor = Color.White;

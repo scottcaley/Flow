@@ -44,7 +44,7 @@ namespace Flow
                 pathState = PathState.Maybe;
                 this.node1 = node1;
                 this.node2 = node2;
-                isCertain = true;
+                isCertain = false;
 
                 if (isStandardPath) AssignNodes();
             }
@@ -72,8 +72,8 @@ namespace Flow
 
             protected virtual void AssignNodes()
             {
-                assignNodeOffOne(node1, node2.x, node2.y);
-                assignNodeOffOne(node2, node1.x, node1.y);
+                AssignNodeOffOne(node1, node2.x, node2.y);
+                AssignNodeOffOne(node2, node1.x, node1.y);
             }
 
             public override String ToString()
@@ -81,7 +81,7 @@ namespace Flow
                 return "path from (" + node1.x + ", " + node1.y + ") to (" + node2.x + ", " + node2.y + ")";
             }
 
-            protected void assignNodeOffOne(Node node, int destX, int destY)
+            protected void AssignNodeOffOne(Node node, int destX, int destY)
             {
                 //check if they are actually supposed to be doing this
                 if (Math.Abs(node.x - destX) == 1 ^ Math.Abs(node.y - destY) == 1)
@@ -95,11 +95,18 @@ namespace Flow
 
             public virtual void Draw()
             {
-                if (pathState == PathState.Bad && !isCertain) Flow.Sd.DrawPathX(node1.x, node1.y, node2.x, node2.y, Color.White);
-                else if (pathState != PathState.Bad)
+                if (pathState == PathState.Good)
                 {
                     Flow.Sd.DrawPath(node1.x, node1.y, node2.x, node2.y, GetColor());
                     if (!isCertain) Flow.Sd.DrawPathX(node1.x, node1.y, node2.x, node2.y, Color.Black);
+                }
+                else if (pathState == PathState.Maybe)
+                {
+                    Flow.Sd.DrawPath(node1.x, node1.y, node2.x, node2.y, Flow.MaybeColor);
+                }
+                else if (!isCertain)
+                {
+                    Flow.Sd.DrawPathX(node1.x, node1.y, node2.x, node2.y, Color.White);
                 }
             }
 
@@ -134,8 +141,8 @@ namespace Flow
 
             protected override void AssignNodes()
             {
-                assignNodeOffOne(node1, dest1X, dest1Y);
-                assignNodeOffOne(node2, dest2X, dest2Y);
+                AssignNodeOffOne(node1, dest1X, dest1Y);
+                AssignNodeOffOne(node2, dest2X, dest2Y);
             }
             public override String ToString()
             {
@@ -167,8 +174,8 @@ namespace Flow
 
             protected override void AssignNodes()
             {
-                assignNodeOffOne(node1, dest1X, dest1Y);
-                assignNodeOffOne(node2, dest2X, dest2Y);
+                AssignNodeOffOne(node1, dest1X, dest1Y);
+                AssignNodeOffOne(node2, dest2X, dest2Y);
             }
 
             public override String ToString()
@@ -179,12 +186,7 @@ namespace Flow
 
             public override void Draw()
             {
-                if (pathState == PathState.Bad && !isCertain)
-                {
-                    Flow.Sd.DrawHalfPathX(node1.x, node1.y, dest1X, dest1Y, Color.White);
-                    Flow.Sd.DrawHalfPathX(node2.x, node2.y, dest2X, dest2Y, Color.White);
-                }
-                else if (pathState != PathState.Bad)
+                if (pathState == PathState.Good)
                 {
                     Flow.Sd.DrawHalfPath(node1.x, node1.y, dest1X, dest1Y, GetColor());
                     Flow.Sd.DrawHalfPath(node2.x, node2.y, dest2X, dest2Y, GetColor());
@@ -193,6 +195,16 @@ namespace Flow
                         Flow.Sd.DrawHalfPathX(node1.x, node1.y, dest1X, dest1Y, Color.Black);
                         Flow.Sd.DrawHalfPathX(node2.x, node2.y, dest2X, dest2Y, Color.Black);
                     }
+                }
+                else if (pathState == PathState.Maybe)
+                {
+                    Flow.Sd.DrawHalfPath(node1.x, node1.y, dest1X, dest1Y, Flow.MaybeColor);
+                    Flow.Sd.DrawHalfPath(node2.x, node2.y, dest2X, dest2Y, Flow.MaybeColor);
+                }
+                else if (!isCertain)
+                {
+                    Flow.Sd.DrawHalfPathX(node1.x, node1.y, dest1X, dest1Y, Color.White);
+                    Flow.Sd.DrawHalfPathX(node2.x, node2.y, dest2X, dest2Y, Color.White);
                 }
             }
         }

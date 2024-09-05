@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -50,14 +51,18 @@ namespace Flow
             public enum Reason
             {
                 Starter,
+
                 NumPaths,
                 AdjacentColor,
                 BorderScan,
                 Tautology,
+
                 SelfContact,
                 MismatchedColor,
                 EndpointPartition,
-                UndoingGuess,
+
+                Guess,
+                UndoingGuess
             }
 
             public Path path;
@@ -246,7 +251,7 @@ namespace Flow
         }
         private void CreateUndo(Path path)
         {
-            _incomingMoves.Push(new Move(path, Path.PathState.Maybe, false, Move.Reason.UndoingGuess));
+            _incomingMoves.Push(new Move(path, Path.PathState.Maybe, false, _cause));
         }
         private void CreateUndo(Path path, Move.Reason reason)
         {
@@ -353,102 +358,7 @@ namespace Flow
 
 
 
-        private void AdvanceGuess()
-        {
-            if (NumGuesses > 0)
-            {
-                (List<Path>, int) guessData = _guesses.Pop();
-                List<Path> guessList = guessData.Item1;
-                int guessNumber = guessData.Item2;
-
-                guessNumber++;
-                if (guessNumber < 2 * guessList.Count)
-                {
-                    _guesses.Push((guessList, guessNumber));
-                }
-                else
-                {
-                    AdvanceGuess(); //go back a guess
-                }
-            }
-            else
-            {
-                _maxGuesses++;
-                AdvanceGuess();
-            }
-        }
-
-        private void CancelAllGuesses()
-        {
-            if (_guesses.Count == 0) return;
-
-            (List<Path>, int) firstGuessData = _guesses.Pop();
-            while (_guesses.Count > 0) firstGuessData = _guesses.Pop();
-
-            Path firstGuessPath = firstGuessData.Item1[firstGuessData.Item2 / 2];
-            foreach (Move move in _completedMoves) //from the top
-            {
-                if (!move.isCertain) CreateUndo(move.path);
-
-                if (move.path == firstGuessPath)
-                {
-                    break;
-                }
-            }
-
-            _maxGuesses = 0;
-        }
-
-        private void CancelGuess()
-        {
-            (List<Path>, int) guessData = _guesses.Peek();
-            List<Path> guessList = guessData.Item1;
-            int guessNumber = guessData.Item2;
-            Path guessPath = guessList[guessNumber / 2];
-
-            bool correctMoveFound = false;
-            foreach (Move move in _completedMoves) //from the top
-            {
-                if (!move.isCertain) CreateUndo(move.path);
-                else correctMoveFound = true;
-
-                if (move.path == guessPath)
-                {
-                    break;
-                }
-            }
-
-            if (correctMoveFound)
-            {
-                CancelAllGuesses();
-            }
-            else
-            {
-                AdvanceGuess();
-            }
-
-            
-        }
-
-        private List<Path> GenerateGuessList()
-        {
-            List<Path> guessList = new List<Path>();
-
-            foreach (Path path in _allPaths)
-            {
-                guessList.Add(path);
-            }
-
-            return guessList;
-        }
-
-        private void MakeNextGuess()
-        {
-
-            
-
-
-        }
+        
 
         public override void Forward()
         {
@@ -468,26 +378,6 @@ namespace Flow
             PerformNextMove();
         }
 
-        private bool Check()
-        {
-            return (SelfContactCheck(LastPath)
-                && MismatchedColorCheck(LastPath)
-                && EndpointPartitionCheck(LastPath));
-        }
-
-        private bool Derive()
-        {
-            return (NumPathsDerivation(_markedNumPaths)
-                || AdjacentColorDerivation(_markedAdjacentColor)
-                || BorderScanDerivation(_markedBorderScan));
-        }
-
-        private String GenerateActionLine(Move move)
-        {
-            return move.path + " changed from " + move.pathState + " to " + move.path.pathState + " via " + move.reason;
-        }
-
-
         private bool PerformNextMove()
         {
             if (_incomingMoves.Count == 0) return false;
@@ -496,7 +386,7 @@ namespace Flow
             move.Execute();
             _completedMoves.Push(move);
 
-            if (_numBack == 0) UpdateDataStructures(move.path, move.pathState);
+            UpdateDataStructures(move.path, move.pathState);
             UpdateColors(move.path, move.pathState);
 
             if (_numBack > 0) _numBack--;
@@ -506,12 +396,10 @@ namespace Flow
             return true;
         }
 
-
         public override void Back()
         {
             UndoPreviousMove();
         }
-
 
         private bool UndoPreviousMove()
         {
@@ -521,6 +409,7 @@ namespace Flow
             move.Execute();
             _incomingMoves.Push(move);
 
+            UpdateDataStructures(move.path, move.pathState);
             UpdateColors(move.path, move.pathState);
 
             _numBack++;
@@ -530,11 +419,180 @@ namespace Flow
             return true;
         }
 
+        private String GenerateActionLine(Move move)
+        {
+            return move.path + " changed from " + move.pathState + " to " + move.path.pathState + " via " + move.reason;
+        }
+
+
+        /**
+         * DERIVATIONS
+         */
+
+        private bool Derive()
+        {
+            return (NumPathsDerivation(_markedNumPaths)
+                || AdjacentColorDerivation(_markedAdjacentColor)
+                || BorderScanDerivation(_markedBorderScan)
+                || TautologyDerivation());
+        }
+
+        private bool NumPathsDerivation(HashSet<Node> markedNodes)
+        {
+            while (markedNodes.Count > 0)
+            {
+                Node node = markedNodes.First();
+                markedNodes.Remove(node);
+                if (node.IsSolved) continue;
+
+                if (node.numPaths == node.PathCount(true, true, false))
+                {
+                    foreach (Path maybePath in node.PathSet(false, true, false))
+                    {
+                        CreateMove(maybePath, Path.PathState.Good, Move.Reason.NumPaths);
+                    }
+                    return true;
+                }
+                else if (node.numPaths == node.PathCount(true, false, false))
+                {
+                    foreach (Path maybePath in node.PathSet(false, true, false))
+                    {
+                        CreateMove(maybePath, Path.PathState.Bad, Move.Reason.NumPaths);
+                    }
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool AdjacentColorDerivation(HashSet<Path> markedPaths)
+        {
+            while (markedPaths.Count > 0)
+            {
+                Path path = markedPaths.First();
+                markedPaths.Remove(path);
+                if (path.pathState != Path.PathState.Maybe) continue;
+
+                Node node1 = path.node1;
+                Node node2 = path.node2;
+
+                if (node1.colorIndex >= 0 && node2.colorIndex >= 0)
+                {
+                    if (node1.colorIndex == node2.colorIndex)
+                    {
+                        CreateMove(path, Path.PathState.Good, Move.Reason.AdjacentColor);
+                    }
+                    else
+                    {
+                        CreateMove(path, Path.PathState.Bad, Move.Reason.AdjacentColor);
+                    }
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool BorderScanDerivation(HashSet<HashSet<Node>> markedGraphs)
+        {
+            return false;
+            while (markedGraphs.Count > 0)
+            {
+                HashSet<Node> graph = markedGraphs.First();
+                markedGraphs.Remove(graph);
+                if (graph.Count == 0) continue;
+
+                List<Node> border = Node.ClockwiseBorder(graph);
+                int len = border.Count;
+
+                List<List<Path>>[] linesByColor = new List<List<Path>>[Flow.Colors.Length];
+                for (int colorIndex = 0; colorIndex < Flow.Colors.Length; colorIndex++)
+                {
+                    linesByColor[colorIndex] = new List<List<Path>>();
+                }
+
+                int lastColorPosition = -1;
+                for (int thisPosition = 0; lastColorPosition < len /* <-- to go a little longer than one full rotation */; thisPosition++)
+                {
+                    int thisColorIndex = border[thisPosition % len].colorIndex;
+                    if (thisColorIndex < 0) continue; //no color
+
+                    if (lastColorPosition >= 0 && thisColorIndex == border[lastColorPosition % len].colorIndex && thisPosition >= lastColorPosition + 2) //if a candidate coloring
+                    {
+                        List<Path> line = new List<Path>();
+                        for (int i = lastColorPosition; i < thisPosition; i++)
+                        {
+                            line.Add(Node.Between(border[i % len], border[(i + 1) % len]));
+                        }
+
+                        linesByColor[thisColorIndex].Add(line);
+                    }
+
+                    lastColorPosition = thisPosition;
+                }
+
+                //check if all lines found in one color are the same line
+                //if good, reduce to one. if bad, reduce to zero
+                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
+                {
+                    List<List<Path>> lines = linesByColor[colorIndex];
+
+                    for (int i = lines.Count - 2; i >= 0; i--)
+                    {
+                        HashSet<Path> line1Paths = new HashSet<Path>(lines[i]);
+                        HashSet<Path> line2Paths = new HashSet<Path>(lines[i + 1]);
+
+                        if (line1Paths.SetEquals(line2Paths))
+                        {
+                            lines.RemoveAt(i + 1); //remove the last path
+                        }
+                        else
+                        {
+                            lines.Clear();
+                            continue;
+                        }
+
+                    }
+                }
+
+                bool moveFound = false;
+                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
+                {
+                    if (linesByColor[colorIndex].Count == 1)
+                    {
+                        List<Path> line = linesByColor[colorIndex][0];
+                        for (int i = 0; i < line.Count; i++)
+                        {
+                            CreateMove(line[i], Path.PathState.Good, Move.Reason.BorderScan);
+                        }
+                        moveFound = true;
+                    }
+                }
+
+                if (moveFound) return true;
+            }
+
+            return false;
+        }
+
+        private bool TautologyDerivation()
+        {
+            return false;
+        }
+
+
 
         /**
          * CHECKS
          */
 
+        private bool Check()
+        {
+            return (SelfContactCheck(LastPath)
+                && MismatchedColorCheck(LastPath)
+                && EndpointPartitionCheck(LastPath));
+        }
 
         /**
          * checks to make sure lines are not adjacent to themself by a maybe/bad edge
@@ -629,158 +687,114 @@ namespace Flow
         }
 
 
+
+
         /**
-         * DERIVATIONS
+         * GUESSES
          */
 
-        private bool NumPathsDerivation(HashSet<Node> markedNodes)
+        private List<Path> GenerateGuessList()
         {
-            while (markedNodes.Count > 0)
-            {
-                Node node = markedNodes.First();
-                markedNodes.Remove(node);
+            List<Path> guessList = new List<Path>();
 
-                if (node.numPaths == node.PathCount(true, true, false))
+            foreach (Path path in _allPaths)
+            {
+                if (path.pathState == Path.PathState.Maybe) guessList.Add(path);
+            }
+
+            return guessList;
+        }
+
+        private void PrepareNextGuess()
+        {
+            if (NumGuesses == 0)
+            {
+                _maxGuesses++;
+                List<Path> guessList = GenerateGuessList();
+                _guesses.Push((guessList, 0));
+            }
+            else if (NumGuesses < _maxGuesses)
+            {
+                List<Path> guessList = GenerateGuessList();
+                _guesses.Push((guessList, 0));
+            }
+            else //NumGuesses == _maxGuesses, most common case
+            {
+                (List<Path>, int) guessData = _guesses.Pop();
+                List<Path> guessList = guessData.Item1;
+                int newGuessNumber = guessData.Item2 + 1;
+                if (newGuessNumber < 2 * guessList.Count)
                 {
-                    foreach (Path maybePath in node.PathSet(false, true, false))
-                    {
-                        CreateMove(maybePath, Path.PathState.Good, Move.Reason.NumPaths);
-                    }
-                    return true;
+                    _guesses.Push((guessList, newGuessNumber));
                 }
-                else if (node.numPaths == node.PathCount(true, false, false))
+                else //newGuessNumber == 2 * guessList.Count, need to fall back
                 {
-                    foreach (Path maybePath in node.PathSet(false, true, false))
+                    if (NumGuesses > 0) //remember this value has changed
                     {
-                        CreateMove(maybePath, Path.PathState.Bad, Move.Reason.NumPaths);
+                        CancelGuess();
                     }
-                    return true;
+                    PrepareNextGuess();
+                }
+            }
+        }
+
+        private void CancelAllGuesses()
+        {
+            if (_guesses.Count == 0) return;
+
+            (List<Path>, int) firstGuessData = _guesses.Pop();
+            while (_guesses.Count > 0) firstGuessData = _guesses.Pop();
+
+            Path firstGuessPath = firstGuessData.Item1[firstGuessData.Item2 / 2];
+            foreach (Move move in _completedMoves) //from the top
+            {
+                if (!move.isCertain) CreateUndo(move.path);
+
+                if (move.path == firstGuessPath)
+                {
+                    break;
                 }
             }
 
-            return false;
+            _maxGuesses = 0;
         }
 
-        private bool AdjacentColorDerivation(HashSet<Path> markedPaths)
+        private void CancelGuess()
         {
-            while (markedPaths.Count > 0)
+            (List<Path>, int) guessData = _guesses.Peek();
+            List<Path> guessList = guessData.Item1;
+            int guessNumber = guessData.Item2;
+            Path guessPath = guessList[guessNumber / 2];
+
+            bool correctMoveFound = false;
+            foreach (Move move in _completedMoves) //from the top
             {
-                Path path = markedPaths.First();
-                markedPaths.Remove(path);
-                if (path.pathState != Path.PathState.Maybe) continue;
+                if (!move.isCertain) CreateUndo(move.path);
+                else correctMoveFound = true;
 
-                Node node1 = path.node1;
-                Node node2 = path.node2;
-
-                if (node1.colorIndex >= 0 && node2.colorIndex >= 0)
+                if (move.path == guessPath)
                 {
-                    if (node1.colorIndex == node2.colorIndex)
-                    {
-                        CreateMove(path, Path.PathState.Good, Move.Reason.AdjacentColor);
-                    }
-                    else
-                    {
-                        CreateMove(path, Path.PathState.Bad, Move.Reason.AdjacentColor);
-                    }
+                    break;
                 }
             }
 
-            return false;
-        }
-
-        private bool BorderScanDerivation(HashSet<HashSet<Node>> markedGraphs)
-        {
-            while (markedGraphs.Count > 0)
+            if (correctMoveFound)
             {
-                HashSet<Node> graph = markedGraphs.First();
-                markedGraphs.Remove(graph);
-                if (graph.Count == 0) continue;
-
-                List<Node> border = Node.ClockwiseBorder(graph);
-                int len = border.Count;
-
-                List<List<Path>>[] linesByColor = new List<List<Path>>[Flow.Colors.Length];
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Length; colorIndex++)
-                {
-                    linesByColor[colorIndex] = new List<List<Path>>();
-                }
-
-                int lastColorPosition = -1;
-                for (int thisPosition = 0; lastColorPosition < len /* <-- to go a little longer than one full rotation */; thisPosition++)
-                {
-                    int thisColorIndex = border[thisPosition % len].colorIndex;
-                    if (thisColorIndex < 0) continue; //no color
-
-                    if (lastColorPosition >= 0 && thisColorIndex == border[lastColorPosition % len].colorIndex && thisPosition >= lastColorPosition + 2) //if a candidate coloring
-                    {
-                        List<Path> line = new List<Path>();
-                        for (int i = lastColorPosition; i < thisPosition; i++)
-                        {
-                            line.Add(Node.Between(border[i % len], border[(i + 1) % len]));
-                        }
-
-                        linesByColor[thisColorIndex].Add(line);
-                    }
-
-                    lastColorPosition = thisPosition;
-                }
-
-                //check if all lines found in one color are the same line
-                //if good, reduce to one. if bad, reduce to zero
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
-                {
-                    List<List<Path>> lines = linesByColor[colorIndex];
-
-                    for (int i = lines.Count - 2; i >= 0; i--)
-                    {
-                        HashSet<Path> line1Paths = new HashSet<Path>(lines[i]);
-                        HashSet<Path> line2Paths = new HashSet<Path>(lines[i + 1]);
-
-                        if (line1Paths.SetEquals(line2Paths))
-                        {
-                            lines.RemoveAt(i + 1); //remove the last path
-                        }
-                        else
-                        {
-                            lines.Clear();
-                            continue;
-                        }
-
-                    }
-                }
-
-                bool moveFound = false;
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
-                {
-                    if (linesByColor[colorIndex].Count == 1)
-                    {
-                        List<Path> line = linesByColor[colorIndex][0];
-                        for (int i = 0; i < line.Count; i++)
-                        {
-                            CreateMove(line[i], Path.PathState.Good, Move.Reason.BorderScan);
-                        }
-                        moveFound = true;
-                    }
-                }
-
-                if (moveFound) return true;
+                CancelAllGuesses();
             }
 
-            return false;
+
         }
 
-
-        private bool TautologyDerivation()
+        private void MakeNextGuess()
         {
-            return false;
+            PrepareNextGuess();
+
+            (List<Path>, int) guessData = _guesses.Peek();
+            List<Path> guessList = guessData.Item1;
+            int guessNumber = guessData.Item2;
+            CreateGuess(guessList[guessNumber / 2], (guessNumber % 2 == 0) ? Path.PathState.Good : Path.PathState.Bad, Move.Reason.Guess);
         }
-        
-
-
-        
-        
-        
-
 
     }
 }
