@@ -45,6 +45,12 @@ namespace Flow
 
             return null;
         } 
+        static private Stack<T> FlipStack<T>(Stack<T> stack)
+        {
+            Stack<T> flipped = new Stack<T>();
+            while (stack.Count > 0) flipped.Push(stack.Pop());
+            return flipped;
+        }
 
         public class Move
         {
@@ -175,11 +181,11 @@ namespace Flow
 
         private int NumGuesses
         {
-            get { return _guesses.Count; }
+            get { return _guessQueues.Count; }
         }
         private bool IsGuessing
         {
-            get { return (_guesses.Count > 0); }
+            get { return (_guessQueues.Count > 0); }
         }
         private Path LastPath
         {
@@ -201,7 +207,7 @@ namespace Flow
         private Stack<Move> _completedMoves;
         private int _numBack;
 
-        private Stack<(List<Path>, int)> _guesses;
+        private Stack<Queue<Move>> _guessQueues;
         private Dictionary<Path, Dictionary<Path, Path.PathState>> _goodConditionals;
         private Dictionary<Path, Dictionary<Path, Path.PathState>> _badConditionals;
         private Move.Reason _cause;
@@ -223,7 +229,7 @@ namespace Flow
             _completedMoves = new Stack<Move>();
             _numBack = 0;
 
-            _guesses = new Stack<(List<Path>, int)>();
+            _guessQueues = new Stack<Queue<Move>>();
             _goodConditionals = new Dictionary<Path, Dictionary<Path, Path.PathState>>();
             _badConditionals = new Dictionary<Path, Dictionary<Path, Path.PathState>>();
             _maxGuesses = 0;
@@ -362,6 +368,7 @@ namespace Flow
 
         public override void Forward()
         {
+            //prepare the move
             if (IsBacked)
             {
                 //nothing, next move is already there
@@ -372,7 +379,7 @@ namespace Flow
             }
             else if (!NextMoveReady && !Derive()) // if no move found
             {
-                MakeNextGuess();
+                DeriveDFS();
             }
 
             PerformNextMove();
@@ -620,7 +627,6 @@ namespace Flow
             return true;
         }
 
-
         /**
          * checks to make sure each line has at most one color
          * lines are partitioned by maybe paths and bad paths
@@ -692,109 +698,114 @@ namespace Flow
         /**
          * GUESSES
          */
-
-        private List<Path> GenerateGuessList()
+        private void DeriveDFS()
         {
-            List<Path> guessList = new List<Path>();
+            PrepareNextGuess();
 
-            foreach (Path path in _allPaths)
-            {
-                if (path.pathState == Path.PathState.Maybe) guessList.Add(path);
-            }
-
-            return guessList;
+            Move guessMove = _guessQueues.Peek().Peek();
+            _incomingMoves.Push(guessMove);
         }
+
+        
 
         private void PrepareNextGuess()
         {
-            if (NumGuesses == 0)
+            if (NumGuesses == 0 || NumGuesses < _maxGuesses)
             {
-                _maxGuesses++;
-                List<Path> guessList = GenerateGuessList();
-                _guesses.Push((guessList, 0));
-            }
-            else if (NumGuesses < _maxGuesses)
-            {
-                List<Path> guessList = GenerateGuessList();
-                _guesses.Push((guessList, 0));
-            }
-            else //NumGuesses == _maxGuesses, most common case
-            {
-                (List<Path>, int) guessData = _guesses.Pop();
-                List<Path> guessList = guessData.Item1;
-                int newGuessNumber = guessData.Item2 + 1;
-                if (newGuessNumber < 2 * guessList.Count)
+                if (NumGuesses == 0) //either we just started guessing or a DFS iteration has finished at the iteration of length _maxGuesses
                 {
-                    _guesses.Push((guessList, newGuessNumber));
+                    _maxGuesses++;
                 }
-                else //newGuessNumber == 2 * guessList.Count, need to fall back
+                Queue<Move> guessList = GenerateGuessQueue();
+                _guessQueues.Push(guessList);
+            }
+            else //NumGuesses == _maxGuesses, NumGuesses > 0 most common case
+            {
+                Queue<Move> guessQueue = _guessQueues.Peek();
+                guessQueue.Dequeue();
+                if (guessQueue.Count == 0) //out of guesses here, need to fall back
                 {
-                    if (NumGuesses > 0) //remember this value has changed
+                    if (CancelGuess()) 
                     {
-                        CancelGuess();
+                        _guessQueues = new Stack<Queue<Move>>();
+                        _maxGuesses = 0;
                     }
-                    PrepareNextGuess();
+                    else
+                    {
+                        _guessQueues.Pop();
+                        _guessQueues.Peek().Dequeue();
+                        PrepareNextGuess(); //should enter the if-block at the top
+                    }
                 }
             }
         }
-
-        private void CancelAllGuesses()
+        private Queue<Move> GenerateGuessQueue()
         {
-            if (_guesses.Count == 0) return;
+            Queue<Move> guessQueue = new Queue<Move>();
 
-            (List<Path>, int) firstGuessData = _guesses.Pop();
-            while (_guesses.Count > 0) firstGuessData = _guesses.Pop();
+            foreach (Path path in _allPaths)
+            {
+                if (path.pathState == Path.PathState.Maybe)
+                {
+                    guessQueue.Enqueue(new Move(path, Path.PathState.Good, false, Move.Reason.Guess));
+                    guessQueue.Enqueue(new Move(path, Path.PathState.Bad, false, Move.Reason.Guess));
+                }
+            }
 
-            Path firstGuessPath = firstGuessData.Item1[firstGuessData.Item2 / 2];
+            return guessQueue;
+        }
+
+        
+
+        /**
+         * Called when an error is found or out of guesses
+         * Does not modify guess data
+         * Only adds cancellation moves to _incomingMoves
+         * Returns true if a correct move was found
+         */
+        private bool CancelGuess()
+        {
+            Move lastGuessMove = _guessQueues.Peek().Peek();
+
+            bool aCorrectMoveFound = false;
             foreach (Move move in _completedMoves) //from the top
             {
                 if (!move.isCertain) CreateUndo(move.path);
+                else aCorrectMoveFound = true;
 
-                if (move.path == firstGuessPath)
+                if (move == lastGuessMove)
                 {
                     break;
                 }
             }
 
-            _maxGuesses = 0;
-        }
-
-        private void CancelGuess()
-        {
-            (List<Path>, int) guessData = _guesses.Peek();
-            List<Path> guessList = guessData.Item1;
-            int guessNumber = guessData.Item2;
-            Path guessPath = guessList[guessNumber / 2];
-
-            bool correctMoveFound = false;
-            foreach (Move move in _completedMoves) //from the top
-            {
-                if (!move.isCertain) CreateUndo(move.path);
-                else correctMoveFound = true;
-
-                if (move.path == guessPath)
-                {
-                    break;
-                }
-            }
-
-            if (correctMoveFound)
+            if (aCorrectMoveFound)
             {
                 CancelAllGuesses();
             }
 
-
+            return aCorrectMoveFound;
         }
 
-        private void MakeNextGuess()
+        /**
+         * Create undo moves for all guesses
+         * Does not modify the guess data
+         */
+        private void CancelAllGuesses()
         {
-            PrepareNextGuess();
+            if (_guessQueues.Count == 0) return;
 
-            (List<Path>, int) guessData = _guesses.Peek();
-            List<Path> guessList = guessData.Item1;
-            int guessNumber = guessData.Item2;
-            CreateGuess(guessList[guessNumber / 2], (guessNumber % 2 == 0) ? Path.PathState.Good : Path.PathState.Bad, Move.Reason.Guess);
+            Stack<Queue<Move>> flipped = FlipStack(_guessQueues);
+            Move firstGuessMove = flipped.Peek().Peek();
+            foreach (Move move in _completedMoves) //from the top
+            {
+                if (!move.isCertain) CreateUndo(move.path);
+
+                if (move == firstGuessMove)
+                {
+                    break;
+                }
+            }
         }
-
     }
 }
