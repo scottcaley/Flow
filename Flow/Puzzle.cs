@@ -312,13 +312,10 @@ namespace Flow
                     if (node.isEndpoint) colorIndices.Add(node.colorIndex);
                 }
 
-                if (colorIndices.Count == 1)
+                int colorIndex = (colorIndices.Count == 1) ? colorIndices.First() : -1;
+                foreach (Node node in graph)
                 {
-                    int colorIndex = colorIndices.First();
-                    foreach (Node node in graph)
-                    {
-                        node.colorIndex = colorIndex;
-                    }
+                    if (!node.isEndpoint) node.colorIndex = colorIndex;
                 }
             }
 
@@ -680,12 +677,9 @@ namespace Flow
             return true;
         }
 
-        public bool IsSolved
+        public bool IsSolved()
         {
-            get
-            {
-                return checkPathCounts() && checkColors();
-            }
+            return checkPathCounts() && checkColors();
         }
 
         public abstract void Forward();

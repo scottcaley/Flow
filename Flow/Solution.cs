@@ -45,12 +45,6 @@ namespace Flow
 
             return null;
         } 
-        static private Stack<T> FlipStack<T>(Stack<T> stack)
-        {
-            Stack<T> flipped = new Stack<T>();
-            while (stack.Count > 0) flipped.Push(stack.Pop());
-            return flipped;
-        }
 
         public class Move
         {
@@ -58,17 +52,16 @@ namespace Flow
             {
                 Starter,
 
-                NumPaths,
-                AdjacentColor,
-                BorderScan,
-                Tautology,
+                NumPathsDerivation,
+                AdjacentColorDerivation,
+                BorderScanDerivation,
+                TautologyDerivation,
 
-                SelfContact,
-                MismatchedColor,
-                EndpointPartition,
+                SelfContactContradiction,
+                MismatchedColorContradiction,
+                EndpointPartitionContradiction,
 
-                Guess,
-                UndoingGuess
+                Guess
             }
 
             public Path path;
@@ -193,17 +186,18 @@ namespace Flow
         }
         private bool NextMoveReady
         {
-            get { return _incomingMoves.Count > 0; }
+            get { return _incomingMoves.Count > 0 || _backedMoves.Count > 0; }
         }
         private bool IsBacked
         {
-            get { return _numBack > 0; }
+            get { return _backedMoves.Count > 0; }
         }
 
         
 
 
-        private Stack<Move> _incomingMoves;
+        private Queue<Move> _incomingMoves;
+        private Stack<Move> _backedMoves;
         private Stack<Move> _completedMoves;
         private int _numBack;
 
@@ -225,7 +219,8 @@ namespace Flow
         public Solution(Graph graph) : base(graph)
         {
 
-            _incomingMoves = new Stack<Move>();
+            _incomingMoves = new Queue<Move>();
+            _backedMoves = new Stack<Move>();
             _completedMoves = new Stack<Move>();
             _numBack = 0;
 
@@ -248,20 +243,38 @@ namespace Flow
 
         private void CreateMove(Path path, Path.PathState pathState, Move.Reason reason)
         {
-            _incomingMoves.Push(new Move(path, pathState, !IsGuessing, reason));
+            _incomingMoves.Enqueue(new Move(path, pathState, !IsGuessing, reason));
         }
         private void CreateGuess(Path path, Path.PathState pathState, Move.Reason reason)
         {
             Move guess = new Move(path, pathState, false, reason);
-            _incomingMoves.Push(guess);
+            _incomingMoves.Enqueue(guess);
         }
         private void CreateUndo(Path path)
         {
-            _incomingMoves.Push(new Move(path, Path.PathState.Maybe, false, _cause));
+            _incomingMoves.Enqueue(new Move(path, Path.PathState.Maybe, false, _cause));
         }
         private void CreateUndo(Path path, Move.Reason reason)
         {
-            _incomingMoves.Push(new Move(path, Path.PathState.Maybe, false, reason));
+            _incomingMoves.Enqueue(new Move(path, Path.PathState.Maybe, false, reason));
+        }
+        private void CreateOpposite(Path path)
+        {
+            Path.PathState currentState = path.pathState;
+            Path.PathState oppositeState;
+            switch (currentState)
+            {
+                case Path.PathState.Good:
+                    oppositeState = Path.PathState.Bad;
+                    break;
+                case Path.PathState.Bad:
+                    oppositeState = Path.PathState.Good;
+                    break;
+                default:
+                    oppositeState = Path.PathState.Maybe;
+                    break;
+            }
+            _incomingMoves.Enqueue(new Move(path, oppositeState, true, _cause));
         }
 
 
@@ -375,11 +388,15 @@ namespace Flow
             }
             else if (IsGuessing && !Check()) // if an error found
             {
-                CancelGuess();
+                HandleBadGuess();
+            }
+            else if (IsSolved())
+            {
+                ValidatePaths();
             }
             else if (!NextMoveReady && !Derive()) // if no move found
             {
-                DeriveDFS();
+                IterativeDFS();
             }
 
             PerformNextMove();
@@ -387,9 +404,11 @@ namespace Flow
 
         private bool PerformNextMove()
         {
-            if (_incomingMoves.Count == 0) return false;
+            Move move;
+            if (_backedMoves.Count > 0) move = _backedMoves.Pop();
+            else if (_incomingMoves.Count > 0) move = _incomingMoves.Dequeue();
+            else return false;
 
-            Move move = _incomingMoves.Pop();
             move.Execute();
             _completedMoves.Push(move);
 
@@ -414,7 +433,7 @@ namespace Flow
 
             Move move = _completedMoves.Pop();
             move.Execute();
-            _incomingMoves.Push(move);
+            _backedMoves.Push(move);
 
             UpdateDataStructures(move.path, move.pathState);
             UpdateColors(move.path, move.pathState);
@@ -424,6 +443,14 @@ namespace Flow
             _actionLine = "Undoing";
 
             return true;
+        }
+
+        private void ValidatePaths()
+        {
+            foreach (Path path in _allPaths)
+            {
+                path.isCertain = true;
+            }
         }
 
         private String GenerateActionLine(Move move)
@@ -456,7 +483,7 @@ namespace Flow
                 {
                     foreach (Path maybePath in node.PathSet(false, true, false))
                     {
-                        CreateMove(maybePath, Path.PathState.Good, Move.Reason.NumPaths);
+                        CreateMove(maybePath, Path.PathState.Good, Move.Reason.NumPathsDerivation);
                     }
                     return true;
                 }
@@ -464,7 +491,7 @@ namespace Flow
                 {
                     foreach (Path maybePath in node.PathSet(false, true, false))
                     {
-                        CreateMove(maybePath, Path.PathState.Bad, Move.Reason.NumPaths);
+                        CreateMove(maybePath, Path.PathState.Bad, Move.Reason.NumPathsDerivation);
                     }
                     return true;
                 }
@@ -488,11 +515,11 @@ namespace Flow
                 {
                     if (node1.colorIndex == node2.colorIndex)
                     {
-                        CreateMove(path, Path.PathState.Good, Move.Reason.AdjacentColor);
+                        CreateMove(path, Path.PathState.Good, Move.Reason.AdjacentColorDerivation);
                     }
                     else
                     {
-                        CreateMove(path, Path.PathState.Bad, Move.Reason.AdjacentColor);
+                        CreateMove(path, Path.PathState.Bad, Move.Reason.AdjacentColorDerivation);
                     }
                     return true;
                 }
@@ -571,7 +598,7 @@ namespace Flow
                         List<Path> line = linesByColor[colorIndex][0];
                         for (int i = 0; i < line.Count; i++)
                         {
-                            CreateMove(line[i], Path.PathState.Good, Move.Reason.BorderScan);
+                            CreateMove(line[i], Path.PathState.Good, Move.Reason.BorderScanDerivation);
                         }
                         moveFound = true;
                     }
@@ -617,7 +644,7 @@ namespace Flow
                     {
                         if (line.Contains(otherNode))
                         {
-                            _cause = Move.Reason.SelfContact;
+                            _cause = Move.Reason.SelfContactContradiction;
                             return false;
                         }
                     }
@@ -645,7 +672,7 @@ namespace Flow
 
                 if (colorIndices.Count > 1)
                 {
-                    _cause = Move.Reason.MismatchedColor;
+                    _cause = Move.Reason.MismatchedColorContradiction;
                     return false;
                 }
             }
@@ -665,7 +692,7 @@ namespace Flow
                 Node[] pathNodes = { path.node1, path.node2 };
                 for (int nodeIndex = 0; nodeIndex < 2; nodeIndex++)
                 {
-                    HashSet<Node> partition = pathNodes[nodeIndex].Neighbors(true, true, false);
+                    HashSet<Node> partition = FindSet(pathNodes[nodeIndex], _partitions);
                     int[] endpointCounts = new int[Flow.Colors.Length];
 
                     foreach (Node node in partition)
@@ -683,7 +710,7 @@ namespace Flow
                     }
                     if (!allEven || !atLeastOneEndpoint)
                     {
-                        _cause = Move.Reason.EndpointPartition;
+                        _cause = Move.Reason.EndpointPartitionContradiction;
                         return false;
                     }
                 }
@@ -698,17 +725,40 @@ namespace Flow
         /**
          * GUESSES
          */
-        private void DeriveDFS()
-        {
-            PrepareNextGuess();
 
+        private void HandleBadGuess()
+        {
+            _incomingMoves.Clear();
             Move guessMove = _guessQueues.Peek().Peek();
-            _incomingMoves.Push(guessMove);
+            _guessQueues.Clear();
+            _maxGuesses = 0;
+            foreach (Move move in _completedMoves) //from the top
+            {
+                if (move == guessMove)
+                {
+                    CreateOpposite(move.path);
+                    break;
+                }
+                else
+                {
+                    CreateUndo(move.path);
+                }
+            }
+        }
+
+        private void IterativeDFS()
+        {
+            AdvanceGuessHierarchy();
+
+            Move guessMove = _guessQueues.Peek().Peek(); //need to make sure this goes at the end of the incoming moves
+            _incomingMoves.Enqueue(guessMove);
         }
 
         
 
-        private void PrepareNextGuess()
+
+
+        private void AdvanceGuessHierarchy()
         {
             if (NumGuesses == 0 || NumGuesses < _maxGuesses)
             {
@@ -721,24 +771,11 @@ namespace Flow
             }
             else //NumGuesses == _maxGuesses, NumGuesses > 0 most common case
             {
-                Queue<Move> guessQueue = _guessQueues.Peek();
-                guessQueue.Dequeue();
-                if (guessQueue.Count == 0) //out of guesses here, need to fall back
-                {
-                    if (CancelGuess()) 
-                    {
-                        _guessQueues = new Stack<Queue<Move>>();
-                        _maxGuesses = 0;
-                    }
-                    else
-                    {
-                        _guessQueues.Pop();
-                        _guessQueues.Peek().Dequeue();
-                        PrepareNextGuess(); //should enter the if-block at the top
-                    }
-                }
+                AdvanceGuessQueue();
             }
         }
+
+
         private Queue<Move> GenerateGuessQueue()
         {
             Queue<Move> guessQueue = new Queue<Move>();
@@ -755,7 +792,18 @@ namespace Flow
             return guessQueue;
         }
 
-        
+        private void AdvanceGuessQueue()
+        {
+            Queue<Move> guessQueue = _guessQueues.Peek();
+            Move previousMove = guessQueue.Dequeue();
+            CancelGuess(previousMove);
+            if (guessQueue.Count == 0) //out of guesses here, need to fall back
+            {
+                _guessQueues.Pop();
+                _guessQueues.Peek().Dequeue();
+                AdvanceGuessQueue(); //should enter the if-block at the top
+            }
+        }
 
         /**
          * Called when an error is found or out of guesses
@@ -763,49 +811,19 @@ namespace Flow
          * Only adds cancellation moves to _incomingMoves
          * Returns true if a correct move was found
          */
-        private bool CancelGuess()
+        private void CancelGuess(Move guessMove)
         {
-            Move lastGuessMove = _guessQueues.Peek().Peek();
-
-            bool aCorrectMoveFound = false;
             foreach (Move move in _completedMoves) //from the top
             {
-                if (!move.isCertain) CreateUndo(move.path);
-                else aCorrectMoveFound = true;
+                CreateUndo(move.path);
 
-                if (move == lastGuessMove)
-                {
-                    break;
-                }
-            }
-
-            if (aCorrectMoveFound)
-            {
-                CancelAllGuesses();
-            }
-
-            return aCorrectMoveFound;
-        }
-
-        /**
-         * Create undo moves for all guesses
-         * Does not modify the guess data
-         */
-        private void CancelAllGuesses()
-        {
-            if (_guessQueues.Count == 0) return;
-
-            Stack<Queue<Move>> flipped = FlipStack(_guessQueues);
-            Move firstGuessMove = flipped.Peek().Peek();
-            foreach (Move move in _completedMoves) //from the top
-            {
-                if (!move.isCertain) CreateUndo(move.path);
-
-                if (move == firstGuessMove)
+                if (move == guessMove)
                 {
                     break;
                 }
             }
         }
+
+        
     }
 }

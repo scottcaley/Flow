@@ -7,9 +7,9 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDimX = 5;
-        public const int GraphDimY = 5;
-        public const int CellDim = 128;
+        public const int GraphDimX = 12;
+        public const int GraphDimY = 15;
+        public const int CellDim = 96;
         public const double FrameTime = 1.0 / 30.0;
 
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
@@ -32,6 +32,25 @@ namespace Flow
             new Color(0x39, 0x29, 0xB0),
             new Color(0x00, 0x7F, 0x80),
             new Color(0xFF, 0x7C, 0xEC)
+        };
+        public static readonly Color[] UncertainColors = new Color[]
+        {
+            new Color(0x7F, 0x00, 0x00),
+            new Color(0x00, 0x45, 0x00),
+            new Color(0x06, 0x15, 0x7F),
+            new Color(0x75, 0x70, 0x00),
+            new Color(0x7E, 0x44, 0x00),
+            new Color(0x00, 0x7F, 0x7F),
+            new Color(0x7F, 0x04, 0x64),
+            new Color(0x4F, 0x44, 0x28),
+            new Color(0x3F, 0x00, 0x3F),
+            new Color(0x7F, 0x7F, 0x6C),
+            new Color(0x2F, 0x28, 0x19),
+            new Color(0x00, 0x7F, 0x00),
+            new Color(0x52, 0x15, 0x14),
+            new Color(0x1C, 0x14, 0x58),
+            new Color(0x00, 0x3F, 0x40),
+            new Color(0x7F, 0x3E, 0x76)
         };
 
         public static GraphicsDeviceManager Graphics;
@@ -90,7 +109,7 @@ namespace Flow
             {
                 if (Input.JustPressedSpace || Input.SpacePressDuration > 1.0)
                 {
-                    if (_solution.IsSolved && Input.JustPressedSpace)
+                    if (_solution.IsSolved() && Input.JustPressedSpace)
                     {
                         _solution = new Solution(_graph);
                     }
