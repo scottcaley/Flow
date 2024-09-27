@@ -530,7 +530,6 @@ namespace Flow
 
         private bool BorderScanDerivation(HashSet<HashSet<Node>> markedGraphs)
         {
-            return false;
             while (markedGraphs.Count > 0)
             {
                 HashSet<Node> graph = markedGraphs.First();

@@ -7,9 +7,9 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDimX = 12;
-        public const int GraphDimY = 15;
-        public const int CellDim = 96;
+        public const int GraphDimX = 8;
+        public const int GraphDimY = 8;
+        public const int CellDim = 128;
         public const double FrameTime = 1.0 / 30.0;
 
         public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
