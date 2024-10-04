@@ -7,16 +7,16 @@ using System.Threading.Tasks;
 
 namespace Flow
 {
-    internal class Edge
+    internal class Border
     {
-        public enum EdgeType
+        public enum BorderType
         {
             Standard,
             Wall,
             Portal
         }
 
-        public EdgeType Type;
+        public BorderType Type;
 
         public readonly int X1;
         public readonly int Y1;
@@ -25,28 +25,28 @@ namespace Flow
 
         public int ColorIndex;
         public bool PointFirst;
-        public Edge(int x1, int y1, int x2, int y2)
+        public Border(int x1, int y1, int x2, int y2)
         {
             X1 = x1;
             Y1 = y1;
             X2 = x2;
             Y2 = y2;
-            Type = EdgeType.Standard;
+            Type = BorderType.Standard;
             ColorIndex = -1;
             PointFirst = true;
         }
 
         public void Draw()
         {
-            if (Type == EdgeType.Standard)
+            if (Type == BorderType.Standard)
             {
                 Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, false);
             }            
-            else if (Type == EdgeType.Wall)
+            else if (Type == BorderType.Wall)
             {
                 Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, true);
             }
-            else if (Type == EdgeType.Portal)
+            else if (Type == BorderType.Portal)
             {
                 Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Flow.Colors[ColorIndex], true);
                 if (PointFirst) Flow.Sd.DrawPortalDirection(X1, Y1, X2, Y2, Flow.Colors[ColorIndex]);

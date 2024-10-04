@@ -19,7 +19,9 @@ namespace Flow
             Bridge,
             Gone,
             Wall,
-            Portal
+            Portal,
+            Load,
+            Finish
         }
 
         private static bool wasClicking = false;
@@ -91,31 +93,34 @@ namespace Flow
         public static KeyboardInputType GetKeyboardInputType()
         {
             KeyboardState keyboardState = Keyboard.GetState();
-            if (keyboardState.IsKeyDown(Keys.Space))
-            {
-                return KeyboardInputType.Solve;
-            }
-            else if (keyboardState.IsKeyDown(Keys.E))
-            {
-                return KeyboardInputType.Endpoint;
-            }
-            else if (keyboardState.IsKeyDown(Keys.B))
-            {
-                return KeyboardInputType.Bridge;
-            }
-            else if (keyboardState.IsKeyDown(Keys.G))
-            {
-                return KeyboardInputType.Gone;
-            }
-            else if (keyboardState.IsKeyDown(Keys.W))
-            {
-                return KeyboardInputType.Wall;
-            }
-            else if (keyboardState.IsKeyDown(Keys.P))
-            {
-                return KeyboardInputType.Portal;
-            }
+
+            if (keyboardState.IsKeyDown(Keys.Space)) return KeyboardInputType.Solve;
+            else if (keyboardState.IsKeyDown(Keys.E)) return KeyboardInputType.Endpoint;
+            else if (keyboardState.IsKeyDown(Keys.B)) return KeyboardInputType.Bridge;
+            else if (keyboardState.IsKeyDown(Keys.G)) return KeyboardInputType.Gone;
+            else if (keyboardState.IsKeyDown(Keys.W)) return KeyboardInputType.Wall;
+            else if (keyboardState.IsKeyDown(Keys.P)) return KeyboardInputType.Portal;
+            else if (keyboardState.IsKeyDown(Keys.L)) return KeyboardInputType.Load;
+            else if (keyboardState.IsKeyDown(Keys.F)) return KeyboardInputType.Finish;
+            
             return KeyboardInputType.None;
+        }
+
+        public static int GetDigit()
+        {
+            KeyboardState keyboardState = Keyboard.GetState();
+
+            if (keyboardState.IsKeyDown(Keys.D1)) return 1;
+            else if (keyboardState.IsKeyDown(Keys.D2)) return 2;
+            else if (keyboardState.IsKeyDown(Keys.D3)) return 3;
+            else if (keyboardState.IsKeyDown(Keys.D4)) return 4;
+            else if (keyboardState.IsKeyDown(Keys.D5)) return 5;
+            else if (keyboardState.IsKeyDown(Keys.D6)) return 6;
+            else if (keyboardState.IsKeyDown(Keys.D7)) return 7;
+            else if (keyboardState.IsKeyDown(Keys.D8)) return 8;
+            else if (keyboardState.IsKeyDown(Keys.D9)) return 9;
+
+            return 0;
         }
 
         public static (int, int) NodeCoordinates()

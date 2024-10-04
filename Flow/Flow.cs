@@ -7,13 +7,16 @@ namespace Flow
 {
     public class Flow : Game
     { 
-        public const int GraphDimX = 8;
-        public const int GraphDimY = 8;
-        public const int CellDim = 128;
-        public const double FrameTime = 1.0 / 30.0;
+        public const int GraphDimX = 12;
+        public const int GraphDimY = 15;
+        public const int CellDim = 80;
+        public const double FrameTime = 1.0 / 120.0;
 
-        public static readonly Color MaybeColor = new Color(0x80, 0x80, 0x80);
+        public static readonly Color MaybeColor = new Color(0x50, 0x50, 0x50);
         public static readonly Color GoodColor = Color.White;
+        public static readonly Color UncertainGoodColor = new Color(0xB0, 0xB0, 0xB0);
+        public static readonly Color BadColor = Color.Black;
+        public static readonly Color UncertainBadColor = new Color(0x20, 0x20, 0x20);
         public static readonly Color[] Colors = new Color[]
         {
             new Color(0xFE, 0x00, 0x00),
@@ -56,7 +59,7 @@ namespace Flow
         public static GraphicsDeviceManager Graphics;
         public static ShapeDrawer Sd;
 
-        private Graph _graph;
+        private Grid _graph;
         private Puzzle _solution;
         private bool _isSolving;
 
@@ -76,7 +79,7 @@ namespace Flow
         {
             Texture2D lineTexture = new Texture2D(GraphicsDevice, 1, 1);
             lineTexture.SetData(new[] { Color.White });
-            _graph = new Graph();
+            _graph = new Grid();
             _isSolving = false;
 
             base.Initialize();
@@ -107,20 +110,26 @@ namespace Flow
             }
             else
             {
-                if (Input.JustPressedSpace || Input.SpacePressDuration > 1.0)
+                if (Input.GetKeyboardInputType() == Input.KeyboardInputType.Finish)
                 {
-                    if (_solution.IsSolved() && Input.JustPressedSpace)
+                    while (!_solution.IsFinished()) _solution.Forward();
+                }
+                else if (Input.JustPressedSpace || Input.SpacePressDuration > 1.0)
+                {
+                    if (_solution.IsFinished() && Input.JustPressedSpace)
                     {
                         _solution = new Solution(_graph);
                     }
                     else
                     {
-                        _solution.Forward();
+                        int numForwards = 1 << Input.GetDigit();
+                        for (int i = 0; i < numForwards; i++) _solution.Forward();
                     }
                 }
                 else if (Input.JustPressedZ || Input.ZPressDuration > 1.0)
                 {
-                    _solution.Back();
+                    int numForwards = 1 << Input.GetDigit();
+                    for (int i = 0; i < numForwards; i++) _solution.Back();
                 }
             }
 

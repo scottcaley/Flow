@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
@@ -8,66 +9,40 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using static Flow.Puzzle.Path;
+using static Flow.Solution;
 
 namespace Flow
 {
     internal class Solution : Puzzle
     {
-        private static HashSet<HashSet<Node>> GenerateGraphs(HashSet<Node> nodes, bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
-        {
-            HashSet<HashSet<Node>> graphs = new HashSet<HashSet<Node>>();
-
-            foreach (Node node in nodes)
-            {
-                if (!ContainedInASet(node, graphs))
-                {
-                    graphs.Add(node.FindGraph(includeGood, includeMaybe, includeBad));
-                }
-            }
-
-            return graphs;
-        }
-        static private bool ContainedInASet<T>(T element, HashSet<HashSet<T>> sets)
-        {
-            foreach (HashSet<T> set in sets)
-            {
-                if (set.Contains(element)) return true;
-            }
-
-            return false;
-        }
-        static private HashSet<T> FindSet<T>(T element, HashSet<HashSet<T>> sets)
-        {
-            foreach (HashSet<T> set in sets)
-            {
-                if (set.Contains(element)) return set;
-            }
-
-            return null;
-        } 
 
         public class Move
         {
             public enum Reason
             {
-                Starter,
+                Starter, 
 
                 NumPathsDerivation,
                 AdjacentColorDerivation,
                 BorderScanDerivation,
-                TautologyDerivation,
 
                 SelfContactContradiction,
                 MismatchedColorContradiction,
                 EndpointPartitionContradiction,
 
-                Guess
+                Guess,
+                MaxGuesses,
+                SolutionFound
             }
 
-            public Path path;
-            public Path.PathState pathState;
-            public bool isCertain;
-            public Reason reason;
+            public readonly Path path;
+            public readonly Path.PathState pathState;
+            public readonly bool isCertain;
+            public readonly Reason reason;
+
+            public Path.PathState previousPathState;
+            public bool previousIsCertain;
 
             public Move(Path path, Path.PathState newState, bool isCertain, Reason reason)
             {
@@ -79,98 +54,43 @@ namespace Flow
 
             public void Execute()
             {
-                Path.PathState tempState = path.pathState;
+                previousPathState = path.pathState;
                 path.pathState = pathState;
-                pathState = tempState;
-
-                bool temp = path.isCertain;
+                previousIsCertain = path.isCertain;
                 path.isCertain = isCertain;
-                isCertain = temp;
+            }
+
+            public void ReverseExecute()
+            {
+                path.pathState = previousPathState;
+                path.isCertain = previousIsCertain;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj == null) return false;
+                if (!(obj is Move)) return false;
+                Move other = (Move)obj;
+                
+                return path.Equals(other.path)
+                    && pathState.Equals(other.pathState)
+                    && isCertain.Equals(other.isCertain)
+                    && reason.Equals(other.reason);
+            }
+
+            public override int GetHashCode()
+            {
+                int hash = 17;
+                hash = hash * 31 + (path != null ? path.GetHashCode() : 0);
+                hash = hash * 31 + pathState.GetHashCode();
+                hash = hash * 31 + isCertain.GetHashCode();
+                hash = hash * 31 + reason.GetHashCode();
+                return hash;
             }
 
         }
 
-        public class LogicCaseSet<T> : HashSet<Dictionary<T, bool>>
-        {
-
-            public LogicCaseSet() : base() { }
-
-
-            private HashSet<T> VariableSet()
-            {
-                HashSet<T> variables = new HashSet<T>();
-
-                foreach (Dictionary<T, bool> map in this)
-                {
-                    foreach (T variable in map.Keys)
-                    {
-                        variables.Add(variable);
-                    }
-                }
-
-                return variables;
-            }
-
-            private static Dictionary<T, bool> GenerateCase(List<T> variableList, int caseNumber)
-            {
-                Dictionary<T, bool> thisCase = new Dictionary<T, bool>();
-
-                for (int index = 0; index < (1 << variableList.Count); index++)
-                {
-                    int digit = (caseNumber >> (variableList.Count - 1 - index));
-                    bool variableValue = !(digit % 2 == 0);
-                    thisCase.Add(variableList[index], variableValue);
-                }
-
-                return thisCase;
-            }
-
-            private static bool IsSubset(Dictionary<T, bool> subset, Dictionary<T, bool> superset)
-            {
-                foreach (T variable in subset.Keys)
-                {
-                    if (!superset.ContainsKey(variable)) return false;
-                    if (subset[variable] != superset[variable]) return false;
-                }
-
-                return true;
-            }
-
-            public void NonRedundantAdd(Dictionary<T, bool> set)
-            {
-                if (this.Contains(set)) return;
-
-                foreach(Dictionary<T, bool> possibleSuperset in this)
-                {
-                    if (IsSubset(set, possibleSuperset)) return;
-                }
-
-                HashSet<Dictionary<T, bool>> subsets = new HashSet<Dictionary<T, bool>>();
-                foreach(Dictionary<T, bool> possibleSubset in this)
-                {
-                    if (IsSubset(possibleSubset, set)) subsets.Add(possibleSubset);
-                }
-                this.ExceptWith(subsets);
-            }
-
-            public bool OrAllCases()
-            {
-
-                List<T> variableList = VariableSet().ToList();
-                for (int caseNumber = 0; caseNumber < (1 << variableList.Count); caseNumber++)
-                {
-                    Dictionary<T, bool> variableCase = GenerateCase(variableList, caseNumber);
-                    bool solutionFound = false;
-                    foreach (Dictionary<T, bool> possibleSolution in this)
-                    {
-                        if (IsSubset(possibleSolution, variableCase)) solutionFound = true;
-                    }
-                    if (!solutionFound) return false;
-                }
-
-                return true;
-            }
-        }
+        
 
         private int NumGuesses
         {
@@ -178,7 +98,7 @@ namespace Flow
         }
         private bool IsGuessing
         {
-            get { return (_guessQueues.Count > 0); }
+            get { return (_guessQueues.Count > 0) || (_completedMoves.Count > 0 && LastPath.pathState == Path.PathState.Unknown); }
         }
         private Path LastPath
         {
@@ -199,34 +119,35 @@ namespace Flow
         private Queue<Move> _incomingMoves;
         private Stack<Move> _backedMoves;
         private Stack<Move> _completedMoves;
+        private Stack<Move> _uncertainMoves;
         private int _numBack;
 
         private Stack<Queue<Move>> _guessQueues;
-        private Dictionary<Path, Dictionary<Path, Path.PathState>> _goodConditionals;
-        private Dictionary<Path, Dictionary<Path, Path.PathState>> _badConditionals;
+        private Stack<Dictionary<Move, int>> _markedGuess;
         private Move.Reason _cause;
         private int _maxGuesses;
 
-        private HashSet<HashSet<Node>> _lines;
-        private HashSet<HashSet<Node>> _partitions;
+        private SetSet<Node> _lines;
+        private SetSet<Node> _partitions;
 
         private HashSet<Node> _markedNumPaths;
         private HashSet<Path> _markedAdjacentColor;
-        private HashSet<HashSet<Node>> _markedBorderScan;
+        private HashSet<Node> _markedBorderScan;
 
 
 
-        public Solution(Graph graph) : base(graph)
+        public Solution(Grid graph) : base(graph)
         {
 
             _incomingMoves = new Queue<Move>();
             _backedMoves = new Stack<Move>();
             _completedMoves = new Stack<Move>();
+            _uncertainMoves = new Stack<Move>();
             _numBack = 0;
 
             _guessQueues = new Stack<Queue<Move>>();
-            _goodConditionals = new Dictionary<Path, Dictionary<Path, Path.PathState>>();
-            _badConditionals = new Dictionary<Path, Dictionary<Path, Path.PathState>>();
+            _markedGuess = new Stack<Dictionary<Move, int>>();
+            _markedGuess.Push(new Dictionary<Move, int>());
             _maxGuesses = 0;
 
             _lines = GenerateGraphs(_allNodes, true, false, false);
@@ -234,29 +155,43 @@ namespace Flow
 
             _markedNumPaths = new HashSet<Node>(_allNodes);
             _markedAdjacentColor = new HashSet<Path>(_allPaths);
-            _markedBorderScan = new HashSet<HashSet<Node>>(_partitions);
+            _markedBorderScan = new HashSet<Node>(_allNodes);
             
             FindFirstMoves();
         }
 
+        private static SetSet<Node> GenerateGraphs(HashSet<Node> nodes, bool includeGood = true, bool includeMaybe = true, bool includeBad = true)
+        {
+            SetSet<Node> graphs = new SetSet<Node>();
+            foreach (Node node in nodes)
+            {
+                if (!graphs.ContainsInSet(node))
+                {
+                    graphs.Add(node.FindGraph(includeGood, includeMaybe, includeBad));
+                }
+            }
+            return graphs;
+        }
+
+        private void FindFirstMoves()
+        {
+            foreach (Path path in _allPaths)
+            {
+                if (path is BridgePath)
+                {
+                    CreateMove(path, Path.PathState.Good, Move.Reason.Starter);
+                }
+            }
+        }
 
 
         private void CreateMove(Path path, Path.PathState pathState, Move.Reason reason)
         {
             _incomingMoves.Enqueue(new Move(path, pathState, !IsGuessing, reason));
         }
-        private void CreateGuess(Path path, Path.PathState pathState, Move.Reason reason)
-        {
-            Move guess = new Move(path, pathState, false, reason);
-            _incomingMoves.Enqueue(guess);
-        }
         private void CreateUndo(Path path)
         {
-            _incomingMoves.Enqueue(new Move(path, Path.PathState.Maybe, false, _cause));
-        }
-        private void CreateUndo(Path path, Move.Reason reason)
-        {
-            _incomingMoves.Enqueue(new Move(path, Path.PathState.Maybe, false, reason));
+            _incomingMoves.Enqueue(new Move(path, Path.PathState.Unknown, !IsGuessing, _cause));
         }
         private void CreateOpposite(Path path)
         {
@@ -271,36 +206,33 @@ namespace Flow
                     oppositeState = Path.PathState.Good;
                     break;
                 default:
-                    oppositeState = Path.PathState.Maybe;
+                    oppositeState = Path.PathState.Unknown;
                     break;
             }
-            _incomingMoves.Enqueue(new Move(path, oppositeState, true, _cause));
+            _incomingMoves.Enqueue(new Move(path, oppositeState, !IsGuessing, _cause));
+        }
+        private void CreateConfirmation(Path path)
+        {
+            Path.PathState currentState = path.pathState;
+            _incomingMoves.Enqueue(new Move(path, currentState, true, Move.Reason.SolutionFound));
         }
 
 
-        private void FindFirstMoves()
-        {
-            foreach (Path path in _allPaths)
-            {
-                if (path is BridgePath)
-                {
-                    CreateMove(path, Path.PathState.Good, Move.Reason.Starter);
-                }
-            }
-        }
-        
 
-
-        private void UpdateDataStructures(Path path, Path.PathState previousState)
+        private void UpdateDataStructures(Move move)
         {
+            Path path = move.path;
+            Path.PathState previousState = move.previousPathState;
+
             Node node1 = path.node1;
             Node node2 = path.node2;
+            Node[] nodes = { node1, node2 };
 
             if (previousState == Path.PathState.Good ^ path.pathState == Path.PathState.Good)
             {
-                HashSet<Node> oldSet = FindSet(node1, _lines);
+                HashSet<Node> oldSet = _lines.FindSet(node1);
                 _lines.Remove(oldSet);
-                oldSet = FindSet(node2, _lines);
+                oldSet = _lines.FindSet(node2);
                 _lines.Remove(oldSet);
 
                 HashSet<Node> line1 = node1.FindGraph(true, false, false);
@@ -310,20 +242,21 @@ namespace Flow
 
             if (previousState == Path.PathState.Bad ^ path.pathState == Path.PathState.Bad)
             {
-                HashSet<Node> oldSet = FindSet(node1, _partitions);
+                HashSet<Node> oldSet = _partitions.FindSet(node1);
                 _partitions.Remove(oldSet);
-                _markedBorderScan.Remove(oldSet);
-                oldSet = FindSet(node2, _partitions);
+                _markedBorderScan.ExceptWith(oldSet);
+                oldSet = _partitions.FindSet(node2);
                 _partitions.Remove(oldSet);
-                _markedBorderScan.Remove(oldSet);
+                _markedBorderScan.ExceptWith(oldSet);
 
                 HashSet<Node> partition1 = node1.FindGraph(true, true, false);
                 _partitions.Add(partition1);
+
                 foreach (Node node in partition1)
                 {
                     if (!node.IsSolved)
                     {
-                        _markedBorderScan.Add(partition1);
+                        _markedBorderScan.UnionWith(partition1);
                         break;
                     }
                 }
@@ -336,42 +269,45 @@ namespace Flow
                     {
                         if (!node.IsSolved)
                         {
-                            _markedBorderScan.Add(partition2);
+                            _markedBorderScan.UnionWith(partition2);
                             break;
                         }
                     }
                 }
             }
 
-            if (!node1.IsSolved)
+            foreach (Node node in nodes)
             {
-                _markedNumPaths.Add(node1);
-                _markedAdjacentColor.Add(Node.Between(node1, node2));
-
-                foreach (Path partitionPath in node1.PathSet(true, true, false))
+                if (!node.IsSolved)
                 {
-                    if (partitionPath.pathState == Path.PathState.Maybe) _markedAdjacentColor.Add(partitionPath);
-                }
-            }
+                    _markedNumPaths.Add(node);
+                    _markedAdjacentColor.Add(Node.Between(node1, node2));
 
-            if (!node2.IsSolved)
-            {
-                _markedNumPaths.Add(node2);
-                _markedAdjacentColor.Add(Node.Between(node2, node1));
+                    foreach (Path partitionPath in node.PathSet(true, true, false))
+                    {
+                        if (partitionPath.pathState == Path.PathState.Unknown) _markedAdjacentColor.Add(partitionPath);
+                    }
 
-                foreach (Path partitionPath in node2.PathSet(true, true, false))
-                {
-                    if (partitionPath.pathState == Path.PathState.Maybe) _markedAdjacentColor.Add(partitionPath);
+                    if (path.pathState != Path.PathState.Unknown)
+                    {
+                        foreach (Path maybePath in node.PathSet(false, true, false))
+                        {
+                            _markedGuess.Peek()[new Move(maybePath, Path.PathState.Good, false, Move.Reason.Guess)] = 0;
+                            _markedGuess.Peek()[new Move(maybePath, Path.PathState.Bad, false, Move.Reason.Guess)] = 0;
+                        }
+                    }
                 }
             }
         }
 
-        private void UpdateColors(Path path, Path.PathState previousState)
+        private void UpdateColors(Move move)
         {
+            Path path = move.path;
+            Path.PathState previousState = move.previousPathState;
             if (previousState == Path.PathState.Good ^ path.pathState == Path.PathState.Good)
             {
-                Node.UpdateGraphColor(FindSet(path.node1, _lines));
-                Node.UpdateGraphColor(FindSet(path.node2, _lines));
+                Node.UpdateGraphColor(_lines.FindSet(path.node1));
+                Node.UpdateGraphColor(_lines.FindSet(path.node2));
             }
         }
 
@@ -382,15 +318,11 @@ namespace Flow
         public override void Forward()
         {
             //prepare the move
-            if (IsBacked)
-            {
-                //nothing, next move is already there
-            }
-            else if (IsGuessing && !Check()) // if an error found
+            if (!NextMoveReady && IsGuessing && !Check()) // if an error found
             {
                 HandleBadGuess();
             }
-            else if (IsSolved())
+            else if (!NextMoveReady && VerifySolution())
             {
                 ValidatePaths();
             }
@@ -402,24 +334,24 @@ namespace Flow
             PerformNextMove();
         }
 
-        private bool PerformNextMove()
+        private void PerformNextMove()
         {
             Move move;
-            if (_backedMoves.Count > 0) move = _backedMoves.Pop();
-            else if (_incomingMoves.Count > 0) move = _incomingMoves.Dequeue();
-            else return false;
+            bool wasBacked = IsBacked;
+            if (wasBacked) move = _backedMoves.Pop();
+            else if (NextMoveReady) move = _incomingMoves.Dequeue();
+            else return;
 
             move.Execute();
             _completedMoves.Push(move);
+            if (!move.isCertain && move.pathState != Path.PathState.Unknown && !wasBacked) _uncertainMoves.Push(move);
 
-            UpdateDataStructures(move.path, move.pathState);
-            UpdateColors(move.path, move.pathState);
+            UpdateDataStructures(move);
+            UpdateColors(move);
 
             if (_numBack > 0) _numBack--;
 
             _actionLine = GenerateActionLine(move);
-
-            return true;
         }
 
         public override void Back()
@@ -427,35 +359,39 @@ namespace Flow
             UndoPreviousMove();
         }
 
-        private bool UndoPreviousMove()
+        private void UndoPreviousMove()
         {
-            if (_completedMoves.Count == 0) return false;
+            if (_completedMoves.Count == 0) return;
 
             Move move = _completedMoves.Pop();
-            move.Execute();
+            move.ReverseExecute();
             _backedMoves.Push(move);
 
-            UpdateDataStructures(move.path, move.pathState);
-            UpdateColors(move.path, move.pathState);
+            UpdateDataStructures(move);
+            UpdateColors(move);
 
             _numBack++;
 
             _actionLine = "Undoing";
-
-            return true;
         }
 
         private void ValidatePaths()
         {
             foreach (Path path in _allPaths)
             {
-                path.isCertain = true;
+                if (!path.isCertain) CreateConfirmation(path);
             }
         }
 
         private String GenerateActionLine(Move move)
         {
-            return move.path + " changed from " + move.pathState + " to " + move.path.pathState + " via " + move.reason;
+            return "Move " + _completedMoves.Count + ": " + move.path + " changed from " + (move.previousIsCertain ? "" : "un") + "certainly " + move.previousPathState
+                + " to " + (move.isCertain ? "" : "un") + "certainly " + move.pathState + " via " + move.reason;
+        }
+
+        public override bool IsFinished()
+        {
+            return _solutionFound && !NextMoveReady && !IsBacked;
         }
 
 
@@ -467,8 +403,7 @@ namespace Flow
         {
             return (NumPathsDerivation(_markedNumPaths)
                 || AdjacentColorDerivation(_markedAdjacentColor)
-                || BorderScanDerivation(_markedBorderScan)
-                || TautologyDerivation());
+                || BorderScanDerivation(_markedBorderScan));
         }
 
         private bool NumPathsDerivation(HashSet<Node> markedNodes)
@@ -506,7 +441,7 @@ namespace Flow
             {
                 Path path = markedPaths.First();
                 markedPaths.Remove(path);
-                if (path.pathState != Path.PathState.Maybe) continue;
+                if (path.pathState != Path.PathState.Unknown) continue;
 
                 Node node1 = path.node1;
                 Node node2 = path.node2;
@@ -528,92 +463,70 @@ namespace Flow
             return false;
         }
 
-        private bool BorderScanDerivation(HashSet<HashSet<Node>> markedGraphs)
+        private bool BorderScanDerivation(HashSet<Node> markedNodes)
         {
-            while (markedGraphs.Count > 0)
+            while (markedNodes.Count > 0)
             {
-                HashSet<Node> graph = markedGraphs.First();
-                markedGraphs.Remove(graph);
-                if (graph.Count == 0) continue;
+                Node endpoint = markedNodes.First();
+                markedNodes.Remove(endpoint);
+                if (!endpoint.isEndpoint) continue;
 
-                List<Node> border = Node.ClockwiseBorder(graph);
-                int len = border.Count;
-
-                List<List<Path>>[] linesByColor = new List<List<Path>>[Flow.Colors.Length];
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Length; colorIndex++)
+                Node otherEndpoint = null;
+                foreach (Node otherNode in markedNodes)
                 {
-                    linesByColor[colorIndex] = new List<List<Path>>();
+                    if (otherNode.isEndpoint && otherNode != endpoint && otherNode.colorIndex == endpoint.colorIndex) otherEndpoint = otherNode;
                 }
+                markedNodes.Remove(otherEndpoint);
 
-                int lastColorPosition = -1;
-                for (int thisPosition = 0; lastColorPosition < len /* <-- to go a little longer than one full rotation */; thisPosition++)
+                if (_lines.FindSet(endpoint) == _lines.FindSet(otherEndpoint)) continue;
+
+                Node end = endpoint.EndOfLine();
+                Node otherEnd = otherEndpoint.EndOfLine();
+
+                HashSet<Path> theBorderPath = null;
+                bool uniqueBorder = false;
+
+                Node[] ends = { end, otherEnd };
+                for (int i = 0; i < 2; i++) //for the 2 starting points
                 {
-                    int thisColorIndex = border[thisPosition % len].colorIndex;
-                    if (thisColorIndex < 0) continue; //no color
-
-                    if (lastColorPosition >= 0 && thisColorIndex == border[lastColorPosition % len].colorIndex && thisPosition >= lastColorPosition + 2) //if a candidate coloring
+                    Node startingPoint = ends[i];
+                    for (int pathIndex = 0; pathIndex < 4; pathIndex++) //for the 4 paths
                     {
-                        List<Path> line = new List<Path>();
-                        for (int i = lastColorPosition; i < thisPosition; i++)
+                        Path path = startingPoint.paths[pathIndex];
+                        if (path != null && path.pathState != Path.PathState.Bad) continue;
+                            
+                        HashSet<Path> borderPath = startingPoint.TraverseBorderClockwise(pathIndex, _lines.FindSet(startingPoint));
+                        if (borderPath != null) //if successful
                         {
-                            line.Add(Node.Between(border[i % len], border[(i + 1) % len]));
+                            if (theBorderPath != null && !theBorderPath.SetEquals(borderPath))
+                            {
+                                uniqueBorder = false;
+                            }
+                            else if (theBorderPath == null)
+                            {
+                                theBorderPath = borderPath;
+                                uniqueBorder = true;
+                            }
                         }
-
-                        linesByColor[thisColorIndex].Add(line);
-                    }
-
-                    lastColorPosition = thisPosition;
-                }
-
-                //check if all lines found in one color are the same line
-                //if good, reduce to one. if bad, reduce to zero
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
-                {
-                    List<List<Path>> lines = linesByColor[colorIndex];
-
-                    for (int i = lines.Count - 2; i >= 0; i--)
-                    {
-                        HashSet<Path> line1Paths = new HashSet<Path>(lines[i]);
-                        HashSet<Path> line2Paths = new HashSet<Path>(lines[i + 1]);
-
-                        if (line1Paths.SetEquals(line2Paths))
-                        {
-                            lines.RemoveAt(i + 1); //remove the last path
-                        }
-                        else
-                        {
-                            lines.Clear();
-                            continue;
-                        }
-
                     }
                 }
 
-                bool moveFound = false;
-                for (int colorIndex = 0; colorIndex < Flow.Colors.Count(); colorIndex++)
+                if (uniqueBorder)
                 {
-                    if (linesByColor[colorIndex].Count == 1)
+                    foreach (Path path in theBorderPath)
                     {
-                        List<Path> line = linesByColor[colorIndex][0];
-                        for (int i = 0; i < line.Count; i++)
-                        {
-                            CreateMove(line[i], Path.PathState.Good, Move.Reason.BorderScanDerivation);
-                        }
-                        moveFound = true;
+                        if (path.pathState == Path.PathState.Unknown) CreateMove(path, Path.PathState.Good, Move.Reason.BorderScanDerivation);
                     }
+                    return true;
                 }
 
-                if (moveFound) return true;
             }
 
+
             return false;
         }
 
-        private bool TautologyDerivation()
-        {
-            return false;
-        }
-
+        
 
 
         /**
@@ -624,7 +537,8 @@ namespace Flow
         {
             return (SelfContactCheck(LastPath)
                 && MismatchedColorCheck(LastPath)
-                && EndpointPartitionCheck(LastPath));
+                && EndpointPartitionCheck(LastPath)
+                && RemovedAdjacencyCheck(LastPath));
         }
 
         /**
@@ -634,7 +548,7 @@ namespace Flow
         {
             if (path.pathState == Path.PathState.Good)
             {
-                HashSet<Node> line = FindSet(path.node1, _lines);
+                HashSet<Node> line = _lines.FindSet(path.node1);
 
                 foreach (Node node in line)
                 {
@@ -661,7 +575,7 @@ namespace Flow
         {
             if (path.pathState == Path.PathState.Good)
             {
-                HashSet<Node> line = FindSet(path.node1, _lines);
+                HashSet<Node> line = _lines.FindSet(path.node1);
                 HashSet<int> colorIndices = new HashSet<int>();
 
                 foreach (Node node in line)
@@ -691,7 +605,7 @@ namespace Flow
                 Node[] pathNodes = { path.node1, path.node2 };
                 for (int nodeIndex = 0; nodeIndex < 2; nodeIndex++)
                 {
-                    HashSet<Node> partition = FindSet(pathNodes[nodeIndex], _partitions);
+                    HashSet<Node> partition = _partitions.FindSet(pathNodes[nodeIndex]);
                     int[] endpointCounts = new int[Flow.Colors.Length];
 
                     foreach (Node node in partition)
@@ -714,10 +628,19 @@ namespace Flow
                     }
                 }
             }
+            else if (path.pathState == Path.PathState.Good)
+            {
+                
+            }
 
             return true;
         }
 
+
+        private bool RemovedAdjacencyCheck(Path path)
+        {
+            return true;
+        }
 
 
 
@@ -729,20 +652,20 @@ namespace Flow
         {
             _incomingMoves.Clear();
             Move guessMove = _guessQueues.Peek().Peek();
-            _guessQueues.Clear();
-            _maxGuesses = 0;
-            foreach (Move move in _completedMoves) //from the top
+            _guessQueues.Pop();
+            _markedGuess.Pop();
+            if (NumGuesses == 0)
             {
-                if (move == guessMove)
-                {
-                    CreateOpposite(move.path);
-                    break;
-                }
-                else
-                {
-                    CreateUndo(move.path);
-                }
+                _maxGuesses = 0;
             }
+
+            Move lastUncertainMove = _uncertainMoves.Pop();
+            while (lastUncertainMove != guessMove)
+            {
+                CreateUndo(lastUncertainMove.path);
+                lastUncertainMove = _uncertainMoves.Pop();
+            }
+            CreateOpposite(lastUncertainMove.path);
         }
 
         private void IterativeDFS()
@@ -752,11 +675,6 @@ namespace Flow
             Move guessMove = _guessQueues.Peek().Peek(); //need to make sure this goes at the end of the incoming moves
             _incomingMoves.Enqueue(guessMove);
         }
-
-        
-
-
-
         private void AdvanceGuessHierarchy()
         {
             if (NumGuesses == 0 || NumGuesses < _maxGuesses)
@@ -765,8 +683,8 @@ namespace Flow
                 {
                     _maxGuesses++;
                 }
-                Queue<Move> guessList = GenerateGuessQueue();
-                _guessQueues.Push(guessList);
+                _guessQueues.Push(GenerateGuessQueue());
+                _markedGuess.Push(new Dictionary<Move, int>());
             }
             else //NumGuesses == _maxGuesses, NumGuesses > 0 most common case
             {
@@ -774,33 +692,50 @@ namespace Flow
             }
         }
 
-
         private Queue<Move> GenerateGuessQueue()
         {
             Queue<Move> guessQueue = new Queue<Move>();
 
-            foreach (Path path in _allPaths)
+            HashSet<Move> completed = new HashSet<Move>();
+            foreach (Move move in _markedGuess.Peek().Keys)
             {
-                if (path.pathState == Path.PathState.Maybe)
+                if (move.path.pathState == Path.PathState.Unknown && _markedGuess.Peek()[move] + NumGuesses < _maxGuesses)
                 {
-                    guessQueue.Enqueue(new Move(path, Path.PathState.Good, false, Move.Reason.Guess));
-                    guessQueue.Enqueue(new Move(path, Path.PathState.Bad, false, Move.Reason.Guess));
+                    guessQueue.Enqueue(move);
+                }
+                else if (move.path.isCertain)
+                {
+                    completed.Add(move);
                 }
             }
+
+            foreach (Move move in completed) _markedGuess.Peek().Remove(move);
 
             return guessQueue;
         }
 
         private void AdvanceGuessQueue()
         {
-            Queue<Move> guessQueue = _guessQueues.Peek();
-            Move previousMove = guessQueue.Dequeue();
+            Move previousMove = _guessQueues.Peek().Dequeue();
+
+            Dictionary<Move, int> top = _markedGuess.Pop();
+            _markedGuess.Peek()[previousMove]++;
+            _markedGuess.Push(top);
+
             CancelGuess(previousMove);
-            if (guessQueue.Count == 0) //out of guesses here, need to fall back
+
+            if (_guessQueues.Peek().Count == 0) //out of guesses here, need to fall back
             {
                 _guessQueues.Pop();
-                _guessQueues.Peek().Dequeue();
-                AdvanceGuessQueue(); //should enter the if-block at the top
+                _markedGuess.Pop();
+                if (_guessQueues.Count > 0)
+                {
+                    AdvanceGuessQueue();
+                }
+                else
+                {
+                    AdvanceGuessHierarchy(); //gotta start fresh
+                }
             }
         }
 
@@ -812,15 +747,14 @@ namespace Flow
          */
         private void CancelGuess(Move guessMove)
         {
-            foreach (Move move in _completedMoves) //from the top
+            _cause = Move.Reason.MaxGuesses;
+            Move lastUncertainMove = _uncertainMoves.Pop();
+            while (lastUncertainMove != guessMove)
             {
-                CreateUndo(move.path);
-
-                if (move == guessMove)
-                {
-                    break;
-                }
+                CreateUndo(lastUncertainMove.path);
+                lastUncertainMove = _uncertainMoves.Pop();
             }
+            CreateUndo(lastUncertainMove.path);
         }
 
         
