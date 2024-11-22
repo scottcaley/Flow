@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flow
+namespace Flow.UI
 {
     internal class Square
     {
@@ -24,7 +24,7 @@ namespace Flow
         public Square(int x, int y)
         {
             X = x;
-            Y = y; 
+            Y = y;
             Type = SquareType.Standard;
         }
 
@@ -47,6 +47,6 @@ namespace Flow
             Flow.Sd.DrawOuterRectangle(X, Y, Color.Black);
         }
 
-        
+
     }
 }

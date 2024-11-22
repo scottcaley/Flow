@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flow
+namespace Flow.Algorithm
 {
     public class LogicCaseSet<T> : HashSet<Dictionary<T, bool>>
     {
@@ -31,9 +31,9 @@ namespace Flow
         {
             Dictionary<T, bool> thisCase = new Dictionary<T, bool>();
 
-            for (int index = 0; index < (1 << variableList.Count); index++)
+            for (int index = 0; index < 1 << variableList.Count; index++)
             {
-                int digit = (caseNumber >> (variableList.Count - 1 - index));
+                int digit = caseNumber >> variableList.Count - 1 - index;
                 bool variableValue = !(digit % 2 == 0);
                 thisCase.Add(variableList[index], variableValue);
             }
@@ -54,7 +54,7 @@ namespace Flow
 
         public void NonRedundantAdd(Dictionary<T, bool> set)
         {
-            if (this.Contains(set)) return;
+            if (Contains(set)) return;
 
             foreach (Dictionary<T, bool> possibleSuperset in this)
             {
@@ -66,14 +66,14 @@ namespace Flow
             {
                 if (IsSubset(possibleSubset, set)) subsets.Add(possibleSubset);
             }
-            this.ExceptWith(subsets);
+            ExceptWith(subsets);
         }
 
         public bool OrAllCases()
         {
 
             List<T> variableList = VariableSet().ToList();
-            for (int caseNumber = 0; caseNumber < (1 << variableList.Count); caseNumber++)
+            for (int caseNumber = 0; caseNumber < 1 << variableList.Count; caseNumber++)
             {
                 Dictionary<T, bool> variableCase = GenerateCase(variableList, caseNumber);
                 bool solutionFound = false;

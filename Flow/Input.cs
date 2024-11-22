@@ -48,7 +48,7 @@ namespace Flow
         {
             get
             {
-                return (double)spacePressFrames * Flow.FrameTime;
+                return spacePressFrames * Flow.FrameTime;
             }
         }
 
@@ -66,7 +66,7 @@ namespace Flow
         {
             get
             {
-                return (double)zPressFrames * Flow.FrameTime;
+                return zPressFrames * Flow.FrameTime;
             }
         }
 
@@ -102,7 +102,7 @@ namespace Flow
             else if (keyboardState.IsKeyDown(Keys.P)) return KeyboardInputType.Portal;
             else if (keyboardState.IsKeyDown(Keys.L)) return KeyboardInputType.Load;
             else if (keyboardState.IsKeyDown(Keys.F)) return KeyboardInputType.Finish;
-            
+
             return KeyboardInputType.None;
         }
 
@@ -123,7 +123,7 @@ namespace Flow
             return 0;
         }
 
-        public static (int, int) NodeCoordinates()
+        public static (int, int) SquareCoordinates()
         {
             MouseState mouseState = Mouse.GetState();
             int x = (mouseState.X - Flow.CellDim) / Flow.CellDim;
@@ -131,22 +131,22 @@ namespace Flow
             return (x, y);
         }
 
-        public static bool IsClickingOnNode()
+        public static bool IsClickingOnSquare()
         {
             MouseState mouseState = Mouse.GetState();
             if (mouseState.LeftButton != ButtonState.Pressed) return false;
 
-            (int, int) coordinates = NodeCoordinates();
+            (int, int) coordinates = SquareCoordinates();
             int x = coordinates.Item1;
             int y = coordinates.Item2;
-            return (0 <= x && x < Flow.GraphDimX && 0 <= y && y < Flow.GraphDimY);
+            return 0 <= x && x < Flow.GraphDimX && 0 <= y && y < Flow.GraphDimY;
         }
 
-        public static (int, int, int, int) EdgeCoordinates()
+        public static (int, int, int, int) BorderCoordinates()
         {
             MouseState mouseState = Mouse.GetState();
-            float x = (float)mouseState.X / (float)Flow.CellDim;
-            float y = (float)mouseState.Y / (float)Flow.CellDim;
+            float x = mouseState.X / (float)Flow.CellDim;
+            float y = mouseState.Y / (float)Flow.CellDim;
 
             int diagonalX = (int)MathF.Floor(x - y);
             int diagonalY = (int)MathF.Floor(x + y);
@@ -168,20 +168,20 @@ namespace Flow
             }
         }
 
-        public static bool IsClickingOnEdge()
+        public static bool IsClickingOnBorder()
         {
             MouseState mouseState = Mouse.GetState();
             if (mouseState.LeftButton != ButtonState.Pressed) return false;
 
-            (int, int, int, int) coordinates = EdgeCoordinates();
+            (int, int, int, int) coordinates = BorderCoordinates();
             int x1 = coordinates.Item1;
             int y1 = coordinates.Item2;
             int x2 = coordinates.Item3;
             int y2 = coordinates.Item4;
 
             return
-                (-1 <= x1 && x1 < Flow.GraphDimX && -1 <= y1 && y1 < Flow.GraphDimY) &&
-                ((x1 + 1 == x2 && y1 >= 0) || (y1 + 1 == y2 && x1 >= 0));
+                -1 <= x1 && x1 < Flow.GraphDimX && -1 <= y1 && y1 < Flow.GraphDimY &&
+                (x1 + 1 == x2 && y1 >= 0 || y1 + 1 == y2 && x1 >= 0);
         }
     }
 }

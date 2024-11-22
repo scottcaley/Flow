@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flow
+namespace Flow.UI
 {
     internal class Border
     {
@@ -40,19 +40,19 @@ namespace Flow
         {
             if (Type == BorderType.Standard)
             {
-                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, false);
-            }            
+                Flow.Sd.DrawBorder(X1, Y1, X2, Y2, Color.White, false);
+            }
             else if (Type == BorderType.Wall)
             {
-                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Color.White, true);
+                Flow.Sd.DrawBorder(X1, Y1, X2, Y2, Color.White, true);
             }
             else if (Type == BorderType.Portal)
             {
-                Flow.Sd.DrawEdge(X1, Y1, X2, Y2, Flow.Colors[ColorIndex], true);
+                Flow.Sd.DrawBorder(X1, Y1, X2, Y2, Flow.Colors[ColorIndex], true);
                 if (PointFirst) Flow.Sd.DrawPortalDirection(X1, Y1, X2, Y2, Flow.Colors[ColorIndex]);
                 else Flow.Sd.DrawPortalDirection(X2, Y2, X1, Y1, Flow.Colors[ColorIndex]);
             }
         }
-        
+
     }
 }

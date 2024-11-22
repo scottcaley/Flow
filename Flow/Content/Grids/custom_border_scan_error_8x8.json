@@ -1,0 +1,21 @@
+{
+  "actions": [
+    { "type": "AddEndpoint", "x": 1, "y": 0 },
+    { "type": "AddEndpoint", "x": 4, "y": 7 },
+    
+    { "type": "AddEndpoint", "x": 0, "y": 0 },
+    { "type": "AddEndpoint", "x": 3, "y": 7 },
+    
+    { "type": "AddEndpoint", "x": 6, "y": 1 },
+    { "type": "AddEndpoint", "x": 6, "y": 6 },
+    
+    { "type": "AddEndpoint", "x": 2, "y": 5 },
+    { "type": "AddEndpoint", "x": 5, "y": 3 },
+    
+    { "type": "AddEndpoint", "x": 4, "y": 2 },
+    { "type": "AddEndpoint", "x": 5, "y": 4 },
+    
+    { "type": "AddEndpoint", "x": 3, "y": 1 },
+    { "type": "AddEndpoint", "x": 4, "y": 3 }
+  ]
+}

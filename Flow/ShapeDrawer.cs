@@ -28,7 +28,7 @@ namespace Flow
 
         private static int ToCenterPixel(int coordinate)
         {
-            return (Flow.CellDim * (2 * coordinate + 3)) / 2;
+            return Flow.CellDim * (2 * coordinate + 3) / 2;
         }
 
         private void DrawThinLine(float x1, float y1, float x2, float y2, Color color)
@@ -61,7 +61,7 @@ namespace Flow
                 null, color, angle, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawEdge(int x1, int y1, int x2, int y2, Color color, bool thick)
+        public void DrawBorder(int x1, int y1, int x2, int y2, Color color, bool thick)
         {
             float pixelX1;
             float pixelY1;
@@ -70,15 +70,15 @@ namespace Flow
 
             if (x1 + 1 == x2) //horizontal nodes
             {
-                pixelX1 = ToCenterPixel(x1) + 0.5f * (float)Flow.CellDim;
-                pixelY1 = ToCenterPixel(y1) - 0.5f * (float)Flow.CellDim;
+                pixelX1 = ToCenterPixel(x1) + 0.5f * Flow.CellDim;
+                pixelY1 = ToCenterPixel(y1) - 0.5f * Flow.CellDim;
                 pixelX2 = pixelX1;
                 pixelY2 = pixelY1 + Flow.CellDim;
             }
             else //vertical nodes
             {
-                pixelX1 = ToCenterPixel(x1) - 0.5f * (float)Flow.CellDim;
-                pixelY1 = ToCenterPixel(y1) + 0.5f * (float)Flow.CellDim;
+                pixelX1 = ToCenterPixel(x1) - 0.5f * Flow.CellDim;
+                pixelY1 = ToCenterPixel(y1) + 0.5f * Flow.CellDim;
                 pixelX2 = pixelX1 + Flow.CellDim;
                 pixelY2 = pixelY1;
             }
@@ -161,32 +161,8 @@ namespace Flow
                     null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawPathX(int x1, int y1, int x2, int y2, Color color)
-        {
-            int xPixel;
-            int width;
-            int yPixel;
-            int height;
 
-            if (x1 != x2) //horizontal path
-            {
-                xPixel = ToCenterPixel(Math.Min(x1, x2));
-                width = Flow.CellDim * Math.Abs(x1 - x2);
-                yPixel = ToCenterPixel(y1);
-                height = 1;
-            }
-            else //vertical path
-            {
-                xPixel = ToCenterPixel(x1);
-                width = 1;
-                yPixel = ToCenterPixel(Math.Min(y1, y2));
-                height = Flow.CellDim * Math.Abs(y1 - y2);
-            }
 
-            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-        }
-        
         public void DrawHalfPath(int x, int y, int xDest, int yDest, Color color)
         {
             int xPixel;
@@ -213,36 +189,12 @@ namespace Flow
                     null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        public void DrawHalfPathX(int x, int y, int xDest, int yDest, Color color)
+
+
+
+        public void DisplayLine(string line)
         {
-            int xPixel;
-            int width;
-            int yPixel;
-            int height;
-
-            if (x != xDest) //horizontal path
-            {
-                xPixel = x < xDest ? ToCenterPixel(x) : ToCenterPixel(xDest) + Flow.CellDim / 2;
-                width = Flow.CellDim / 2;
-                yPixel = ToCenterPixel(y);
-                height = 1;
-            }
-            else //vertical path
-            {
-                xPixel = ToCenterPixel(x);
-                width = 1;
-                yPixel = y < yDest ? ToCenterPixel(y) : ToCenterPixel(yDest) + Flow.CellDim / 2;
-                height = Flow.CellDim / 2;
-            }
-
-            Draw(_lineTexture, new Rectangle(xPixel, yPixel, width, height),
-                    null, color, 0f, Vector2.Zero, SpriteEffects.None, 0);
-        }
-
-
-        public void DisplayLine(String line)
-        {
-            DrawString(_font, line, new Vector2(Flow.CellDim, (2 + Flow.GraphDimY) * Flow.CellDim), Color.White);
+            DrawString(_font, line, new Vector2(Flow.CellDim, Flow.CellDim * Flow.GraphDimY + Flow.CellDim * 3 / 2), Color.White);
         }
 
     }

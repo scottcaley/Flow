@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Flow.UI;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using System;
 using System.Collections.Generic;
@@ -11,7 +12,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flow
+namespace Flow.Algorithm
 {
     abstract class Puzzle
     {
@@ -86,7 +87,7 @@ namespace Flow
                 AssignNodeOffOne(node2, node1.x, node1.y);
             }
 
-            public override String ToString()
+            public override string ToString()
             {
                 return "path from (" + node1.x + ", " + node1.y + ") to (" + node2.x + ", " + node2.y + ")";
             }
@@ -145,7 +146,7 @@ namespace Flow
                 AssignNodeOffOne(node1, dest1X, dest1Y);
                 AssignNodeOffOne(node2, dest2X, dest2Y);
             }
-            public override String ToString()
+            public override string ToString()
             {
                 return "bridge-path from (" + node1.x + ", " + node1.y + ") to (" + node2.x + ", " + node2.y + ")";
             }
@@ -179,7 +180,7 @@ namespace Flow
                 AssignNodeOffOne(node2, dest2X, dest2Y);
             }
 
-            public override String ToString()
+            public override string ToString()
             {
                 return "portal-path from (" + node1.x + ", " + node1.y + ") with dest (" + dest1X + ", " + dest1Y + ")" +
                     " to (" + node2.x + ", " + node2.y + ") with dest (" + dest2X + ", " + dest2Y + ")";
@@ -204,7 +205,7 @@ namespace Flow
             public Path[] paths;
             public int colorIndex;
             public bool isEndpoint;
-            
+
             public Node(int x, int y, int numPaths)
             {
                 this.x = x;
@@ -257,9 +258,9 @@ namespace Flow
                     Path path = paths[i];
                     if (path == null) continue;
 
-                    if ((path.pathState == Path.PathState.Good && includeGood) ||
-                        (path.pathState == Path.PathState.Unknown && includeMaybe) ||
-                        (path.pathState == Path.PathState.Bad && includeBad))
+                    if (path.pathState == Path.PathState.Good && includeGood ||
+                        path.pathState == Path.PathState.Unknown && includeMaybe ||
+                        path.pathState == Path.PathState.Bad && includeBad)
                     {
                         neighbors.Add(path.OtherNode(this));
                     }
@@ -297,7 +298,7 @@ namespace Flow
                     if (node.isEndpoint) colorIndices.Add(node.colorIndex);
                 }
 
-                int colorIndex = (colorIndices.Count == 1) ? colorIndices.First() : -1;
+                int colorIndex = colorIndices.Count == 1 ? colorIndices.First() : -1;
                 foreach (Node node in graph)
                 {
                     if (!node.isEndpoint) node.colorIndex = colorIndex;
@@ -313,9 +314,9 @@ namespace Flow
                     Path path = paths[pathIndex];
                     if (path == null) continue;
 
-                    if ((path.pathState == Path.PathState.Good && includeGood) ||
-                        (path.pathState == Path.PathState.Unknown && includeMaybe) ||
-                        (path.pathState == Path.PathState.Bad && includeBad))
+                    if (path.pathState == Path.PathState.Good && includeGood ||
+                        path.pathState == Path.PathState.Unknown && includeMaybe ||
+                        path.pathState == Path.PathState.Bad && includeBad)
                     {
                         count++;
                     }
@@ -333,9 +334,9 @@ namespace Flow
                     Path path = paths[pathIndex];
                     if (path == null) continue;
 
-                    if ((path.pathState == Path.PathState.Good && includeGood) ||
-                        (path.pathState == Path.PathState.Unknown && includeMaybe) ||
-                        (path.pathState == Path.PathState.Bad && includeBad))
+                    if (path.pathState == Path.PathState.Good && includeGood ||
+                        path.pathState == Path.PathState.Unknown && includeMaybe ||
+                        path.pathState == Path.PathState.Bad && includeBad)
                     {
                         pathSet.Add(path);
                     }
@@ -373,22 +374,31 @@ namespace Flow
                 return end;
             }
 
-            private (Path, int) LeftMost(int previousDirection)
+            private int CycleDirection(int direction, bool isClockwise)
             {
-                int direction = previousDirection - 1; //optimal direction, traverse rightward from here
-                if (direction == -1) direction = 3; //stupid clock arithmetic
+                if (isClockwise)
+                {
+                    return (direction + 1) % 4;
+                }
+                else
+                {
+                    direction--;
+                    return direction >= 0 ? direction : 3;
+                }
+            }
+
+            private (Path, int) MostRotation(int previousDirection, bool isMostClockwise)
+            {
+                int optimalDirection = CycleDirection(previousDirection, isMostClockwise);
 
                 for (int i = 0; i < 4; i++)
                 {
-                    Path leftMostPath = paths[direction];
-                    if (leftMostPath == null || leftMostPath.pathState == Path.PathState.Bad) //if not valid
+                    Path mostRotationPath = paths[optimalDirection];
+                    if (mostRotationPath != null && mostRotationPath.pathState != Path.PathState.Bad) //if valid
                     {
-                        direction = (direction + 1) % 4;
-                        continue;
+                        return (mostRotationPath, optimalDirection);
                     }
-
-                    Node leftMostNode = leftMostPath.OtherNode(this);
-                    return (leftMostPath, direction);
+                    optimalDirection = CycleDirection(optimalDirection, !isMostClockwise);
                 }
 
                 return (null, -1); //shouldn't happen
@@ -397,7 +407,7 @@ namespace Flow
             public bool VerifyNoNumPathViolations(HashSet<Path> borderPath)
             {
                 Dictionary<Node, HashSet<Path>> nodeToPaths = new Dictionary<Node, HashSet<Path>>();
-                
+
                 foreach (Path path in borderPath)
                 {
                     Node[] nodes = { path.node1, path.node2 };
@@ -417,32 +427,39 @@ namespace Flow
                 return true;
             }
 
-            public HashSet<Path> TraverseBorderClockwise(int wallDirection, HashSet<Node> sourceLine)
+            public HashSet<Path> TraverseBorder(int wallDirection, HashSet<Node> sourceLine, bool isClockwise)
             {
                 HashSet<Path> borderPaths = new HashSet<Path>();
 
-                Node node = this;
-                int direction = (wallDirection + 1) % 4;
+                int direction = CycleDirection(wallDirection, isClockwise);
+                Path path = paths[direction];
+                if (path == null || path.pathState == Path.PathState.Bad || path is BridgePath || path is PortalPath) return null;
 
-                do
+                Node node = path.OtherNode(this);
+                if (sourceLine.Contains(node) || (node.colorIndex >= 0 && node.colorIndex != colorIndex)) return null;
+
+                borderPaths.Add(path);
+
+                while (node.colorIndex == -1)
                 {
-                    (Path, int) borderData = node.LeftMost(direction);
-                    Path path = borderData.Item1;
+                    (Path, int) borderData = node.MostRotation(direction, !isClockwise);
+                    path = borderData.Item1;
                     direction = borderData.Item2;
                     node = path.OtherNode(node);
 
                     if (borderPaths.Contains(path)
                         || sourceLine.Contains(node)
                         || (node.colorIndex >= 0 && node.colorIndex != colorIndex)
-                        || path is PortalPath) 
+                        || path is BridgePath || path is PortalPath)
                     {
                         return null;
                     }
 
                     borderPaths.Add(path);
 
-                } while (node.colorIndex == -1);
+                }
 
+                if (node.colorIndex != this.colorIndex) return null;
                 if (!VerifyNoNumPathViolations(borderPaths)) return null;
 
                 return borderPaths;
@@ -452,17 +469,17 @@ namespace Flow
             {
                 if (paths[0] != null) paths[0].Draw();
                 if (paths[1] != null) paths[1].Draw();
-                if ((x == 0 && paths[2] != null) || paths[2] is PortalPath) paths[2].Draw();
-                if ((y == 0 && paths[3] != null) || paths[3] is PortalPath) paths[3].Draw();
+                if (x == 0 && paths[2] != null || paths[2] is PortalPath) paths[2].Draw();
+                if (y == 0 && paths[3] != null || paths[3] is PortalPath) paths[3].Draw();
             }
         }
 
-        
+
 
         protected HashSet<Node> _allNodes;
         protected HashSet<Path> _allPaths;
         protected bool _solutionFound;
-        protected String _actionLine;
+        protected string _actionLine;
         public Puzzle(Grid graph)
         {
             _solutionFound = false;
@@ -472,10 +489,10 @@ namespace Flow
             {
                 for (int j = 0; j < Flow.GraphDimY; j++)
                 {
-                    Square vertex = graph.getVertex(i, j);
+                    Square vertex = graph.GetSquare(i, j);
                     if (vertex == null || vertex.Type == Square.SquareType.Bridge) continue;
 
-                    int numPaths = (vertex.Type == Square.SquareType.Standard) ? 2 : 1;
+                    int numPaths = vertex.Type == Square.SquareType.Standard ? 2 : 1;
                     Node newNode = new Node(i, j, numPaths);
                     allNodes[i, j] = newNode;
                     _allNodes.Add(newNode);
@@ -492,13 +509,13 @@ namespace Flow
             {
                 for (int j = -1; j < Flow.GraphDimY; j++)
                 {
-                    Border edge = graph.getEdge(i, j, i + 1, j);
+                    Border edge = graph.GetBorder(i, j, i + 1, j);
                     if (edge == null) continue;
-                    
+
                     if (edge.Type == Border.BorderType.Standard)
                     {
-                        Square leftVertex = graph.getVertex(i, j);
-                        Square rightVertex = graph.getVertex(i + 1, j);
+                        Square leftVertex = graph.GetSquare(i, j);
+                        Square rightVertex = graph.GetSquare(i + 1, j);
 
                         if (leftVertex.Type != Square.SquareType.Bridge && rightVertex.Type != Square.SquareType.Bridge)
                         {
@@ -507,7 +524,7 @@ namespace Flow
                         else if (leftVertex.Type != Square.SquareType.Bridge && rightVertex.Type == Square.SquareType.Bridge)
                         {
                             int nextNonBridgeX = i + 2;
-                            while (graph.getVertex(nextNonBridgeX, j).Type == Square.SquareType.Bridge) nextNonBridgeX++;
+                            while (graph.GetSquare(nextNonBridgeX, j).Type == Square.SquareType.Bridge) nextNonBridgeX++;
 
                             BridgePath newPath = new BridgePath(allNodes[i, j], allNodes[nextNonBridgeX, j]);
                         }
@@ -520,15 +537,15 @@ namespace Flow
                         {
                             if (graph.PortalBarriers[portalIndex] == edge) break;
                         }
-                        int otherPortalindex = (portalIndex / 2) * 2 + (portalIndex % 2 + 1) % 2;
+                        int otherPortalindex = portalIndex / 2 * 2 + (portalIndex % 2 + 1) % 2;
                         Border otherEdge = graph.PortalBarriers[otherPortalindex];
 
-                        
+
                         int x1 = edge.PointFirst ? edge.X1 : edge.X2;
                         int y1 = edge.PointFirst ? edge.Y1 : edge.Y2;
                         int x2 = otherEdge.PointFirst ? otherEdge.X1 : otherEdge.X2;
                         int y2 = otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2;
-                        if (graph.getVertex(x1, y1) != null)
+                        if (graph.GetSquare(x1, y1) != null)
                         {
                             PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X2 : edge.X1, edge.PointFirst ? edge.Y2 : edge.Y1,
@@ -541,13 +558,13 @@ namespace Flow
                         x2 = otherEdge.PointFirst ? otherEdge.X2 : otherEdge.X1;
                         y2 = otherEdge.PointFirst ? otherEdge.Y2 : otherEdge.Y1;
 
-                        if (graph.getVertex(x1, y1) != null)
+                        if (graph.GetSquare(x1, y1) != null)
                         {
                             PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X1 : edge.X2, edge.PointFirst ? edge.Y1 : edge.Y2,
                                 otherEdge.PointFirst ? otherEdge.X1 : otherEdge.X2, otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2);
                         }
-                        
+
                     }
                     //else wall, don't bother
                 }
@@ -558,13 +575,13 @@ namespace Flow
             {
                 for (int j = -1; j < Flow.GraphDimY; j++)
                 {
-                    Border edge = graph.getEdge(i, j, i, j + 1);
+                    Border edge = graph.GetBorder(i, j, i, j + 1);
                     if (edge == null) continue;
 
                     if (edge.Type == Border.BorderType.Standard)
                     {
-                        Square topVertex = graph.getVertex(i, j);
-                        Square bottomVertex = graph.getVertex(i, j + 1);
+                        Square topVertex = graph.GetSquare(i, j);
+                        Square bottomVertex = graph.GetSquare(i, j + 1);
 
                         if (topVertex.Type != Square.SquareType.Bridge && bottomVertex.Type != Square.SquareType.Bridge)
                         {
@@ -573,7 +590,7 @@ namespace Flow
                         else if (topVertex.Type != Square.SquareType.Bridge && bottomVertex.Type == Square.SquareType.Bridge)
                         {
                             int nextNonBridgeY = j + 2;
-                            while (graph.getVertex(i, nextNonBridgeY).Type == Square.SquareType.Bridge) nextNonBridgeY++;
+                            while (graph.GetSquare(i, nextNonBridgeY).Type == Square.SquareType.Bridge) nextNonBridgeY++;
 
                             BridgePath newPath = new BridgePath(allNodes[i, j], allNodes[i, nextNonBridgeY]);
                         }
@@ -586,7 +603,7 @@ namespace Flow
                         {
                             if (graph.PortalBarriers[portalIndex] == edge) break;
                         }
-                        int otherPortalindex = (portalIndex / 2) * 2 + (portalIndex % 2 + 1) % 2;
+                        int otherPortalindex = portalIndex / 2 * 2 + (portalIndex % 2 + 1) % 2;
                         Border otherEdge = graph.PortalBarriers[otherPortalindex];
 
 
@@ -594,7 +611,7 @@ namespace Flow
                         int y1 = edge.PointFirst ? edge.Y1 : edge.Y2;
                         int x2 = otherEdge.PointFirst ? otherEdge.X1 : otherEdge.X2;
                         int y2 = otherEdge.PointFirst ? otherEdge.Y1 : otherEdge.Y2;
-                        if (graph.getVertex(x1, y1) != null)
+                        if (graph.GetSquare(x1, y1) != null)
                         {
                             PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X2 : edge.X1, edge.PointFirst ? edge.Y2 : edge.Y1,
@@ -607,7 +624,7 @@ namespace Flow
                         x2 = otherEdge.PointFirst ? otherEdge.X2 : otherEdge.X1;
                         y2 = otherEdge.PointFirst ? otherEdge.Y2 : otherEdge.Y1;
 
-                        if (graph.getVertex(x1, y1) != null)
+                        if (graph.GetSquare(x1, y1) != null)
                         {
                             PortalPath newPath = new PortalPath(allNodes[x1, y1], allNodes[x2, y2],
                                 edge.PointFirst ? edge.X1 : edge.X2, edge.PointFirst ? edge.Y1 : edge.Y2,
@@ -648,7 +665,7 @@ namespace Flow
         private bool checkPathCounts()
         {
             foreach (Node node in _allNodes)
-            { 
+            {
                 int goodPathCount = 0;
                 for (int pathIndex = 0; pathIndex < 4; pathIndex++)
                 {
@@ -658,7 +675,7 @@ namespace Flow
                     if (path.pathState == Path.PathState.Good) goodPathCount++;
                 }
                 if (goodPathCount != node.numPaths) return false;
-                
+
             }
             return true;
         }
@@ -673,8 +690,8 @@ namespace Flow
 
             foreach (Node node in _allNodes)
             {
-                    if (node.colorIndex == -1) return false; //uncolored node is bad
-                    nodesByColor[node.colorIndex].Add(node);
+                if (node.colorIndex == -1) return false; //uncolored node is bad
+                nodesByColor[node.colorIndex].Add(node);
             }
 
             for (int i = 0; i < 16; i++)

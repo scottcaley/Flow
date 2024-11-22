@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flow
+namespace Flow.Algorithm
 {
     internal class SetSet<T> : HashSet<HashSet<T>>
     {
@@ -38,6 +38,16 @@ namespace Flow
             }
 
             return new HashSet<T>();
+        }
+
+        public int SetsTotalCount()
+        {
+            int count = 0;
+            foreach (HashSet<T> set in this)
+            {
+                count += set.Count;
+            }
+            return count;
         }
     }
 }
